@@ -33,39 +33,41 @@ Les flux sont autorisés uniquement entre Bareos et les machines sauvegardées, 
 
 Les éléments suivants sont sauvegardés :
 
-Base de données PostgreSQL (GLPI)
-Configuration FreeIPA
-Volumes Docker
-Fichiers système critiques
-Stratégie de sauvegarde
-Sauvegarde complète : 1 fois par jour
-Sauvegarde incrémentale : toutes les 6 heures
-Rétention : 7 jours
-Procédure de restauration
+* Base de données PostgreSQL (GLPI)
+* Configuration FreeIPA
+* Volumes Docker
+* Fichiers système critiques
+* Stratégie de sauvegarde
+* Sauvegarde complète : 1 fois par jour
+* Sauvegarde incrémentale : toutes les 6 heures
+* Rétention : 7 jours
+* Procédure de restauration
 
 La restauration est effectuée via l’outil bconsole :
 
-Sélection du job de sauvegarde
-Choix des fichiers à restaurer
-Lancement de la restauration vers la machine cible
-Preuve de fonctionnement
+* Sélection du job de sauvegarde
+* Choix des fichiers à restaurer
+* Lancement de la restauration vers la machine cible
+* Preuve de fonctionnement
 
 Une restauration complète de la base PostgreSQL a été réalisée avec succès :
 
-suppression volontaire de la base
-restauration via Bareos
-redémarrage du service
-validation du bon fonctionnement de l’application
-Justification technique
+* Suppression volontaire de la base
+* Restauration via Bareos
+* Redémarrage du service
+* Validation du bon fonctionnement de l’application
+
+## Justification technique
 
 Le choix de Bareos permet :
 
-une gestion centralisée des sauvegardes
-une solution scalable adaptée à une PME
-une automatisation possible via API et scripts
-une séparation claire des rôles (sécurité et maintenabilité)
-Limites
-mise en place plus complexe que des solutions simples (rsync, restic)
-nécessite une configuration rigoureuse pour éviter les erreurs
+* Gestion centralisée des sauvegardes
+* Solution scalable adaptée à une PME
+* Automatisation possible via API et scripts
+* Séparation claire des rôles (sécurité et maintenabilité)
+
+## Limites
+* Mise en place plus complexe que des solutions simples (rsync, restic)
+* Nécessite une configuration rigoureuse pour éviter les erreurs
 
 Cependant, ce choix est justifié par notre volonté de proposer une solution professionnelle et évolutive.
