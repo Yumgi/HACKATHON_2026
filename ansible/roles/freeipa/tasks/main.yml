@@ -1,39 +1,55 @@
 ---
-- name: Installer les dépendances FreeIPA
-  apt:
-    name:
-      - freeipa-server
-      - freeipa-server-dns
-      - freeipa-client
-      - python3-ipalib
-      - python3-ipaclient
-    state: present
+# FreeIPA sur Rocky Linux 9 — utilise dnf, firewalld, systemd natifs
+
+- name: Mettre à jour le système Rocky Linux
+  dnf:
+    name: "*"
+    state: latest
     update_cache: true
   tags: install
 
-- name: Configurer le hostname
+- name: Installer FreeIPA server + DNS
+  dnf:
+    name:
+      - ipa-server
+      - ipa-server-dns
+      - python3-ipalib
+      - python3-ipaclient
+      - bind
+      - bind-dyndb-ldap
+    state: present
+  tags: install
+
+- name: Configurer le hostname FQDN
   hostname:
     name: "ipa.{{ domain }}"
   tags: configure
 
-- name: Supprimer l'entrée 127.0.0.1 pour le FQDN (évite les conflits)
+- name: Supprimer l'entrée 127.0.0.1 conflictuelle avec le FQDN
   lineinfile:
     path: /etc/hosts
-    regexp: "^127\\.0\\.0\\.1.*{{ ipa_server_fqdn }}"
+    regexp: "^127\\.0\\.0\\.1.*ipa\\.{{ domain }}"
     state: absent
+  tags: configure
 
-- name: Ajouter l'entrée /etc/hosts
+- name: Ajouter l'entrée /etc/hosts pour FreeIPA
   lineinfile:
     path: /etc/hosts
     line: "{{ freeipa_ip }} ipa.{{ domain }} ipa"
     state: present
   tags: configure
 
-- name: Installer FreeIPA server (idempotent)
+- name: Vérifier si FreeIPA est déjà installé
+  stat:
+    path: /etc/ipa/default.conf
+  register: ipa_installed
+  tags: install
+
+- name: Installer FreeIPA server (idempotent via creates)
   command: >
     ipa-server-install
     --unattended
-    --hostname={{ freeipa_server_fqdn }}
+    --hostname=ipa.{{ domain }}
     --realm={{ freeipa_realm }}
     --domain={{ freeipa_domain }}
     --ds-password={{ freeipa_ds_password }}
@@ -46,18 +62,16 @@
   when: not ipa_installed.stat.exists
   register: ipa_install_result
   changed_when: ipa_install_result.rc == 0
-  args:
-    creates: /etc/ipa/default.conf
   tags: install
 
-- name: Démarrer et activer ipa
+- name: Activer et démarrer le service ipa
   systemd:
     name: ipa
     state: started
     enabled: true
   tags: configure
 
-- name: Ouvrir les ports FreeIPA dans firewalld
+- name: Ouvrir les services FreeIPA dans firewalld
   firewalld:
     service: "{{ item }}"
     permanent: true
@@ -68,8 +82,11 @@
     - freeipa-ldaps
     - dns
     - ntp
+    - http
+    - https
+  tags: configure
 
-- name: Ouvrir le port 88 (Kerberos TCP/UDP)
+- name: Ouvrir les ports Kerberos (TCP + UDP)
   firewalld:
     port: "{{ item }}"
     permanent: true
@@ -80,6 +97,7 @@
     - "88/udp"
     - "464/tcp"
     - "464/udp"
+  tags: configure
 
 - name: Créer les groupes ACME
   include_tasks: groups.yml

@@ -1,8 +1,26 @@
-proxmox_api_url  = "https://proxmox.acme.local:8006/api2/json"
-proxmox_user     = "root@pam"
+# ─── Connexion Proxmox ────────────────────────────────────────────────────────
+proxmox_api_url  = "https://proxmox-01:8006/api2/json"
+proxmox_user     = "s.lefebvre@LAB-LYON"
 proxmox_password = "CHANGE_ME"
-proxmox_node     = "pve"
-proxmox_template = "ubuntu-22.04-cloud"
-ssh_public_key   = "ssh-rsa AAAAB3... user@host"
+proxmox_node     = "proxmox-01"
 storage_pool     = "local-lvm"
+
+# ─── SSH ──────────────────────────────────────────────────────────────────────
+ssh_public_key   = "ssh-rsa AAAAB3... user@host"
+
+# ─── Domaine ──────────────────────────────────────────────────────────────────
 domain           = "acme.local"
+
+# ─── VLAN 20 — SERVERS (vmbr2) ────────────────────────────────────────────────
+servers_bridge   = "vmbr2"
+servers_gateway  = "10.20.0.1"
+
+# ─── VLAN 30 — DMZ (vmbr3) ───────────────────────────────────────────────────
+dmz_bridge       = "vmbr3"
+dmz_gateway      = "10.30.0.1"
+
+# ─── Templates LXC ────────────────────────────────────────────────────────────
+# Vérifier les noms exacts avec : pveam list local
+tpl_rhel9        = "local:vztmpl/rockylinux-9-default_20240911_amd64.tar.xz"
+tpl_ubuntu2204   = "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+tpl_debian12     = "local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst"
