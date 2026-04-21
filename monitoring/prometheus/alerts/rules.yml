@@ -1,0 +1,101 @@
+groups:
+  - name: infrastructure
+    interval: 30s
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} inaccessible"
+          description: "{{ $labels.instance }} est DOWN depuis plus de 2 minutes."
+
+      - alert: HighCPULoad
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU élevé sur {{ $labels.instance }}"
+          description: "CPU à {{ $value | printf \"%.1f\" }}% sur {{ $labels.instance }} depuis 5 min."
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Espace disque faible sur {{ $labels.instance }}"
+          description: "Moins de 15% d'espace libre sur {{ $labels.instance }} ({{ $value | printf \"%.1f\" }}%)."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mémoire élevée sur {{ $labels.instance }}"
+          description: "{{ $value | printf \"%.1f\" }}% de RAM utilisée sur {{ $labels.instance }}."
+
+  - name: database
+    rules:
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL inaccessible"
+          description: "L'instance PostgreSQL {{ $labels.instance }} est DOWN."
+
+      - alert: PostgreSQLTooManyConnections
+        expr: sum by (instance) (pg_stat_activity_count) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trop de connexions PostgreSQL"
+          description: "{{ $value }} connexions actives sur {{ $labels.instance }}."
+
+  - name: application
+    rules:
+      - alert: AppHighErrorRate
+        expr: |
+          rate(flask_http_request_total{status=~"5.."}[5m])
+          / rate(flask_http_request_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreurs HTTP 5xx élevé"
+          description: "{{ $value | printf \"%.1f\" }}% des requêtes retournent 5xx."
+
+      - alert: AppDown
+        expr: up{job="app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application ACME inaccessible"
+          description: "L'application Flask ne répond plus au healthcheck."
+
+      - alert: AppHighLatency
+        expr: histogram_quantile(0.95, rate(flask_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence application élevée (p95)"
+          description: "p95 de latence = {{ $value | printf \"%.2f\" }}s."
+
+  - name: traefik
+    rules:
+      - alert: TraefikDown
+        expr: up{job="traefik"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Traefik inaccessible"
+          description: "Le reverse proxy Traefik ne répond plus."

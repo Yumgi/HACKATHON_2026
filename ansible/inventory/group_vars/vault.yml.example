@@ -1,0 +1,10 @@
+---
+# Copier ce fichier en vault.yml puis chiffrer avec :
+# ansible-vault encrypt inventory/group_vars/vault.yml
+
+vault_freeipa_admin_password: "ChangeMe!FreeIPA"
+vault_freeipa_ds_password: "ChangeMe!DS"
+vault_postgresql_app_password: "ChangeMe!PG"
+vault_grafana_admin_password: "ChangeMe!Grafana"
+vault_app_secret_key: "changeme-very-long-random-secret-key-here"
+vault_bareos_webui_password: "ChangeMe!Bareos"

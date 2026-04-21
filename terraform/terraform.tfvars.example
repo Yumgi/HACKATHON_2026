@@ -1,0 +1,8 @@
+proxmox_api_url  = "https://proxmox.acme.local:8006/api2/json"
+proxmox_user     = "root@pam"
+proxmox_password = "CHANGE_ME"
+proxmox_node     = "pve"
+proxmox_template = "ubuntu-22.04-cloud"
+ssh_public_key   = "ssh-rsa AAAAB3... user@host"
+storage_pool     = "local-lvm"
+domain           = "acme.local"

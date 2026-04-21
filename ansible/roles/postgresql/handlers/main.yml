@@ -1,0 +1,10 @@
+---
+- name: restart postgresql
+  systemd:
+    name: postgresql
+    state: restarted
+
+- name: restart postgres-exporter
+  systemd:
+    name: prometheus-postgres-exporter
+    state: restarted

@@ -1,0 +1,23 @@
+---
+- name: Monitoring — Prometheus + Grafana
+  hosts: monitoring
+  become: true
+
+  roles:
+    - role: prometheus
+      tags: [prometheus, monitoring]
+    - role: grafana
+      tags: [grafana, monitoring]
+
+  post_tasks:
+    - name: Vérifier Prometheus
+      uri:
+        url: "http://{{ monitoring_ip }}:9090/-/healthy"
+        status_code: 200
+      tags: verify
+
+    - name: Vérifier Grafana
+      uri:
+        url: "http://{{ monitoring_ip }}:3000/api/health"
+        status_code: 200
+      tags: verify

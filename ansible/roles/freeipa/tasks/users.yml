@@ -1,0 +1,45 @@
+---
+# Utilisateurs de démonstration ACME Corp
+
+- name: Créer l'utilisateur alice (admin)
+  community.general.ipa_user:
+    name: alice
+    givenname: Alice
+    sn: Admin
+    mail: alice@acme.local
+    password: "Admin1234!"
+    groups:
+      - acme-admins
+      - acme-users
+    state: present
+    ipa_host: "ipa.{{ domain }}"
+    ipa_user: admin
+    ipa_pass: "{{ freeipa_admin_password }}"
+
+- name: Créer l'utilisateur bob (utilisateur standard)
+  community.general.ipa_user:
+    name: bob
+    givenname: Bob
+    sn: User
+    mail: bob@acme.local
+    password: "User1234!"
+    groups:
+      - acme-users
+    state: present
+    ipa_host: "ipa.{{ domain }}"
+    ipa_user: admin
+    ipa_pass: "{{ freeipa_admin_password }}"
+
+- name: Créer l'utilisateur carol (lecture seule)
+  community.general.ipa_user:
+    name: carol
+    givenname: Carol
+    sn: Readonly
+    mail: carol@acme.local
+    password: "Read1234!"
+    groups:
+      - acme-readonly
+    state: present
+    ipa_host: "ipa.{{ domain }}"
+    ipa_user: admin
+    ipa_pass: "{{ freeipa_admin_password }}"

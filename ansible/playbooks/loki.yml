@@ -1,0 +1,19 @@
+---
+- name: Loki — Agrégation de logs
+  hosts: logging
+  become: true
+
+  roles:
+    - role: loki
+      tags: [loki, logging]
+
+- name: Promtail — Agent sur tous les serveurs
+  hosts: servers:dmz
+  become: true
+
+  tasks:
+    - name: Installer Promtail
+      include_role:
+        name: loki
+        tasks_from: promtail
+      tags: [promtail, logging]

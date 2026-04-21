@@ -1,0 +1,70 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://192.168.10.40:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: syslog
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: syslog
+          host: __HOSTNAME__
+          __path__: /var/log/syslog
+
+  - job_name: auth
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: auth
+          host: __HOSTNAME__
+          __path__: /var/log/auth.log
+
+  - job_name: traefik
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: traefik
+          host: traefik
+          __path__: /opt/traefik/logs/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            status: StatusCode
+            method: RequestMethod
+            path: RequestPath
+            duration: Duration
+      - labels:
+          status:
+          method:
+
+  - job_name: acme-app
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: acme-app
+          host: app
+          __path__: /opt/acme-app/logs/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            level: level
+            user: user
+            action: action
+            ip: remote_addr
+      - labels:
+          level:
+          action:
+
+  - job_name: freeipa
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: freeipa
+          host: freeipa
+          __path__: /var/log/dirsrv/slapd-*/access

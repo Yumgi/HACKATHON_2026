@@ -1,0 +1,76 @@
+---
+- name: Créer l'utilisateur prometheus
+  user:
+    name: prometheus
+    system: true
+    shell: /bin/false
+    create_home: false
+  tags: install
+
+- name: Télécharger et installer Prometheus
+  unarchive:
+    src: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: /usr/local/bin/
+    remote_src: true
+    extra_opts: ["--strip-components=1", "--wildcards", "*/prometheus", "*/promtool"]
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+  args:
+    creates: /usr/local/bin/prometheus
+  tags: install
+
+- name: Créer les répertoires Prometheus
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+  loop:
+    - /etc/prometheus
+    - /etc/prometheus/rules
+    - /var/lib/prometheus
+  tags: configure
+
+- name: Déployer prometheus.yml
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: prometheus
+    group: prometheus
+    mode: "0644"
+  notify: restart prometheus
+  tags: configure
+
+- name: Déployer les règles d'alerte
+  copy:
+    src: "{{ playbook_dir }}/../monitoring/prometheus/alerts/rules.yml"
+    dest: /etc/prometheus/rules/rules.yml
+    owner: prometheus
+    group: prometheus
+    mode: "0644"
+  notify: restart prometheus
+  tags: [configure, alerts]
+
+- name: Déployer le service systemd Prometheus
+  template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart prometheus
+  tags: configure
+
+- name: Démarrer Prometheus
+  systemd:
+    name: prometheus
+    state: started
+    enabled: true
+    daemon_reload: true
+  tags: configure
+
+- name: Installer Alertmanager
+  include_tasks: alertmanager.yml
+  tags: [install, alerts]

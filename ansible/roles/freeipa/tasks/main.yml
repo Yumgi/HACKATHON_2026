@@ -1,0 +1,90 @@
+---
+- name: Installer les dépendances FreeIPA
+  apt:
+    name:
+      - freeipa-server
+      - freeipa-server-dns
+      - freeipa-client
+      - python3-ipalib
+      - python3-ipaclient
+    state: present
+    update_cache: true
+  tags: install
+
+- name: Configurer le hostname
+  hostname:
+    name: "ipa.{{ domain }}"
+  tags: configure
+
+- name: Supprimer l'entrée 127.0.0.1 pour le FQDN (évite les conflits)
+  lineinfile:
+    path: /etc/hosts
+    regexp: "^127\\.0\\.0\\.1.*{{ ipa_server_fqdn }}"
+    state: absent
+
+- name: Ajouter l'entrée /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ freeipa_ip }} ipa.{{ domain }} ipa"
+    state: present
+  tags: configure
+
+- name: Installer FreeIPA server (idempotent)
+  command: >
+    ipa-server-install
+    --unattended
+    --hostname={{ freeipa_server_fqdn }}
+    --realm={{ freeipa_realm }}
+    --domain={{ freeipa_domain }}
+    --ds-password={{ freeipa_ds_password }}
+    --admin-password={{ freeipa_admin_password }}
+    --setup-dns
+    --auto-reverse
+    --forwarder=1.1.1.1
+    --no-ntp
+    --mkhomedir
+  when: not ipa_installed.stat.exists
+  register: ipa_install_result
+  changed_when: ipa_install_result.rc == 0
+  args:
+    creates: /etc/ipa/default.conf
+  tags: install
+
+- name: Démarrer et activer ipa
+  systemd:
+    name: ipa
+    state: started
+    enabled: true
+  tags: configure
+
+- name: Ouvrir les ports FreeIPA dans firewalld
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - freeipa-ldap
+    - freeipa-ldaps
+    - dns
+    - ntp
+
+- name: Ouvrir le port 88 (Kerberos TCP/UDP)
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - "88/tcp"
+    - "88/udp"
+    - "464/tcp"
+    - "464/udp"
+
+- name: Créer les groupes ACME
+  include_tasks: groups.yml
+  tags: users
+
+- name: Créer les utilisateurs ACME
+  include_tasks: users.yml
+  tags: users

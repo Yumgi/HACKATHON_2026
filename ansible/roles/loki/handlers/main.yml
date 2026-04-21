@@ -1,0 +1,14 @@
+---
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart loki
+  systemd:
+    name: loki
+    state: restarted
+
+- name: restart promtail
+  systemd:
+    name: promtail
+    state: restarted

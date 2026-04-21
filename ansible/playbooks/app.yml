@@ -1,0 +1,17 @@
+---
+- name: Application Flask — Déploiement
+  hosts: app
+  become: true
+
+  roles:
+    - role: app_deploy
+      tags: [app, deploy]
+
+  post_tasks:
+    - name: Healthcheck application
+      uri:
+        url: "http://{{ app_ip }}:{{ app_port }}/health"
+        status_code: 200
+      retries: 5
+      delay: 5
+      tags: verify

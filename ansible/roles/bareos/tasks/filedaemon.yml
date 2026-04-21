@@ -1,0 +1,21 @@
+---
+- name: Installer bareos-filedaemon
+  apt:
+    name: bareos-filedaemon
+    state: present
+    update_cache: true
+
+- name: Configurer bareos-fd.conf
+  template:
+    src: bareos-fd-client.conf.j2
+    dest: /etc/bareos/bareos-fd.conf
+    mode: "0640"
+    owner: bareos
+    group: bareos
+  notify: restart bareos-fd
+
+- name: Démarrer bareos-fd
+  systemd:
+    name: bareos-fd
+    state: started
+    enabled: true

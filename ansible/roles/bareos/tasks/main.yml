@@ -1,0 +1,77 @@
+---
+- name: Ajouter le dépôt Bareos
+  block:
+    - name: Clé GPG Bareos
+      apt_key:
+        url: "https://download.bareos.org/current/xUbuntu_22.04/Release.key"
+        state: present
+
+    - name: Dépôt Bareos
+      apt_repository:
+        repo: "deb https://download.bareos.org/current/xUbuntu_22.04/ /"
+        state: present
+        filename: bareos
+  tags: install
+
+- name: Installer Bareos Director + Storage + Console
+  apt:
+    name:
+      - bareos
+      - bareos-database-postgresql
+      - bareos-webui
+    state: present
+    update_cache: true
+  tags: install
+
+- name: Configurer la base Bareos dans PostgreSQL
+  command: /usr/lib/bareos/scripts/create_bareos_database
+  become_user: postgres
+  args:
+    creates: /var/lib/bareos/.db_initialized
+  tags: configure
+
+- name: Créer les tables Bareos
+  command: /usr/lib/bareos/scripts/make_bareos_tables
+  become_user: postgres
+  args:
+    creates: /var/lib/bareos/.tables_created
+  tags: configure
+
+- name: Droits Bareos DB
+  command: /usr/lib/bareos/scripts/grant_bareos_privileges
+  become_user: postgres
+  args:
+    creates: /var/lib/bareos/.privileges_granted
+  tags: configure
+
+- name: Déployer bareos-dir.conf
+  template:
+    src: bareos-dir.conf.j2
+    dest: /etc/bareos/bareos-dir.conf
+    mode: "0640"
+    owner: bareos
+    group: bareos
+  notify: restart bareos-dir
+  tags: configure
+
+- name: Déployer bareos-sd.conf
+  template:
+    src: bareos-sd.conf.j2
+    dest: /etc/bareos/bareos-sd.conf
+    mode: "0640"
+    owner: bareos
+    group: bareos
+  notify: restart bareos-sd
+  tags: configure
+
+- name: Démarrer les services Bareos
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - bareos-dir
+    - bareos-sd
+    - bareos-fd
+    - apache2
+  tags: configure

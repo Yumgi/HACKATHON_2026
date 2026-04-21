@@ -1,0 +1,26 @@
+- name: Vérifier que les services IPA sont actifs
+  command: ipactl status
+  register: ipa_status
+  changed_when: false
+
+- name: Afficher le statut IPA
+  debug:
+    msg: "{{ ipa_status.stdout_lines }}"
+
+- name: Lister les groupes créés
+  shell: ipa group-find --all | grep "Group name"
+  register: groups_list
+  changed_when: false
+
+- name: Afficher les groupes
+  debug:
+    msg: "{{ groups_list.stdout_lines }}"
+
+- name: Lister les utilisateurs créés
+  shell: ipa user-find --all | grep "User login"
+  register: users_list
+  changed_when: false
+
+- name: Afficher les utilisateurs
+  debug:
+    msg: "{{ users_list.stdout_lines }}"

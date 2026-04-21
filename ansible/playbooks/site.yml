@@ -1,0 +1,24 @@
+---
+# Playbook principal — déploie toute l'infrastructure ACME Corp dans l'ordre
+# Usage : ansible-playbook playbooks/site.yml [--ask-vault-pass]
+
+- name: "[1/7] FreeIPA — Annuaire LDAP"
+  import_playbook: freeipa.yml
+
+- name: "[2/7] PostgreSQL — Base de données"
+  import_playbook: postgresql.yml
+
+- name: "[3/7] Loki — Logs centralisés"
+  import_playbook: loki.yml
+
+- name: "[4/7] Monitoring — Prometheus + Grafana"
+  import_playbook: monitoring.yml
+
+- name: "[5/7] Traefik — Reverse proxy HTTPS"
+  import_playbook: traefik.yml
+
+- name: "[6/7] Application — Flask interne"
+  import_playbook: app.yml
+
+- name: "[7/7] Bareos — Sauvegarde"
+  import_playbook: backup.yml
