@@ -1,0 +1,260 @@
+---
+# ============================================================
+# Playbook Ansible — Configuration pfSense
+# Groupe 1 — Hackathon ESGI Lyon
+# Plage IP : 10.230.101.0/24
+# pfSense Global GW : 10.231.254.254
+# ============================================================
+
+- name: Configuration complète pfSense
+  hosts: pfsense
+  gather_facts: false
+
+  tasks:
+
+    # -------------------------
+    # SYSTEME
+    # -------------------------
+    - name: Configuration système générale
+      pfsensible.core.pfsense_setup:
+        hostname: pfsense-lab
+        domain: lab.local
+        dns_addresses:
+          - 8.8.8.8
+          - 1.1.1.1
+        timezone: Europe/Paris
+        language: fr_FR
+
+    # -------------------------
+    # INTERFACES
+    # -------------------------
+    - name: Interface WAN (vers pfSense Global)
+      pfsensible.core.pfsense_interface:
+        descr: WAN
+        interface: vtnet0
+        enable: true
+        ipv4_type: static
+        ipv4_address: 10.230.101.254
+        ipv4_prefixlen: 24
+        state: present
+
+    - name: Interface LAN - VLAN 10 (Users)
+      pfsensible.core.pfsense_interface:
+        descr: LAN
+        interface: vtnet1
+        enable: true
+        ipv4_type: static
+        ipv4_address: 10.10.0.1
+        ipv4_prefixlen: 24
+        state: present
+
+    - name: Interface SERVERS - VLAN 20
+      pfsensible.core.pfsense_interface:
+        descr: SERVERS
+        interface: vtnet2
+        enable: true
+        ipv4_type: static
+        ipv4_address: 10.20.0.1
+        ipv4_prefixlen: 24
+        state: present
+
+    - name: Interface DMZ - VLAN 30
+      pfsensible.core.pfsense_interface:
+        descr: DMZ
+        interface: vtnet3
+        enable: true
+        ipv4_type: static
+        ipv4_address: 10.30.0.1
+        ipv4_prefixlen: 24
+        state: present
+
+    # -------------------------
+    # GATEWAY
+    # -------------------------
+    - name: Gateway WAN vers pfSense Global
+      pfsensible.core.pfsense_gateway:
+        name: WAN_GW
+        interface: WAN
+        gateway: 10.231.254.254
+        defaultgw: true
+        state: present
+
+    # -------------------------
+    # DHCP (LAN uniquement)
+    # Interdit sur WAN selon doc école
+    # -------------------------
+    - name: DHCP LAN VLAN 10
+      pfsensible.core.pfsense_dhcp:
+        interface: LAN
+        enable: true
+        range_from: 10.10.0.100
+        range_to: 10.10.0.200
+        gateway: 10.10.0.1
+        dnsserver:
+          - 8.8.8.8
+          - 1.1.1.1
+
+    # -------------------------
+    # ALIASES
+    # -------------------------
+    - name: Alias poste admin
+      pfsensible.core.pfsense_alias:
+        name: ADMIN
+        type: host
+        address: 10.10.0.10
+        descr: Poste administration
+        state: present
+
+    - name: Alias réseau SERVERS
+      pfsensible.core.pfsense_alias:
+        name: SERVERS_NET
+        type: network
+        address: 10.20.0.0/24
+        descr: Réseau serveurs VLAN20
+        state: present
+
+    - name: Alias Traefik DMZ
+      pfsensible.core.pfsense_alias:
+        name: TRAEFIK
+        type: host
+        address: 10.30.0.10
+        descr: Reverse proxy Traefik
+        state: present
+
+    - name: Alias GLPI
+      pfsensible.core.pfsense_alias:
+        name: GLPI
+        type: host
+        address: 10.20.0.30
+        descr: Application GLPI
+        state: present
+
+    - name: Alias PostgreSQL
+      pfsensible.core.pfsense_alias:
+        name: POSTGRESQL
+        type: host
+        address: 10.20.0.20
+        descr: Base de données PostgreSQL
+        state: present
+
+    - name: Alias FreeIPA
+      pfsensible.core.pfsense_alias:
+        name: FREEIPA
+        type: host
+        address: 10.20.0.10
+        descr: Annuaire FreeIPA LDAP/DNS
+        state: present
+
+    # -------------------------
+    # REGLES FIREWALL — LAN (VLAN 10)
+    # -------------------------
+    - name: Allow Users HTTPS -> Traefik DMZ
+      pfsensible.core.pfsense_rule:
+        name: Allow_HTTPS_to_Traefik
+        action: pass
+        interface: lan
+        protocol: tcp
+        source: 10.10.0.0/24
+        destination: 10.30.0.10
+        destination_port: 443
+        descr: Users accès HTTPS vers Traefik
+        state: present
+
+    - name: Allow Admin SSH -> Servers
+      pfsensible.core.pfsense_rule:
+        name: Allow_Admin_SSH
+        action: pass
+        interface: lan
+        protocol: tcp
+        source: 10.10.0.10
+        destination: 10.20.0.0/24
+        destination_port: 22
+        descr: Admin SSH vers VLAN20
+        state: present
+
+    - name: Allow Admin RDP -> Servers
+      pfsensible.core.pfsense_rule:
+        name: Allow_Admin_RDP
+        action: pass
+        interface: lan
+        protocol: tcp
+        source: 10.10.0.10
+        destination: 10.20.0.0/24
+        destination_port: 3389
+        descr: Admin RDP vers VLAN20
+        state: present
+
+    - name: Deny tout depuis LAN
+      pfsensible.core.pfsense_rule:
+        name: Deny_LAN_All
+        action: block
+        interface: lan
+        protocol: any
+        source: any
+        destination: any
+        descr: Deny by default LAN
+        state: present
+
+    # -------------------------
+    # REGLES FIREWALL — DMZ (VLAN 30)
+    # -------------------------
+    - name: Allow Traefik -> GLPI
+      pfsensible.core.pfsense_rule:
+        name: Allow_Traefik_to_GLPI
+        action: pass
+        interface: dmz
+        protocol: tcp
+        source: 10.30.0.10
+        destination: 10.20.0.30
+        destination_port: 80
+        descr: Traefik vers GLPI HTTP
+        state: present
+
+    - name: Deny DMZ -> tout le reste
+      pfsensible.core.pfsense_rule:
+        name: Deny_DMZ_All
+        action: block
+        interface: dmz
+        protocol: any
+        source: any
+        destination: any
+        descr: Deny by default DMZ
+        state: present
+
+    # -------------------------
+    # REGLES FIREWALL — SERVERS (VLAN 20)
+    # -------------------------
+    - name: Allow GLPI -> PostgreSQL
+      pfsensible.core.pfsense_rule:
+        name: Allow_GLPI_to_PostgreSQL
+        action: pass
+        interface: servers
+        protocol: tcp
+        source: 10.20.0.30
+        destination: 10.20.0.20
+        destination_port: 5432
+        descr: GLPI vers PostgreSQL
+        state: present
+
+    - name: Allow Servers -> DNS externe
+      pfsensible.core.pfsense_rule:
+        name: Allow_Servers_DNS
+        action: pass
+        interface: servers
+        protocol: udp
+        source: 10.20.0.0/24
+        destination: 8.8.8.8
+        destination_port: 53
+        descr: DNS externe depuis SERVERS
+        state: present
+
+    - name: Deny SERVERS -> tout le reste
+      pfsensible.core.pfsense_rule:
+        name: Deny_Servers_All
+        action: block
+        interface: servers
+        protocol: any
+        source: any
+        destination: any
+        descr: Deny by default SERVERS
+        state: present
