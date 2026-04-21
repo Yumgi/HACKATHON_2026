@@ -1,0 +1,5 @@
+---
+- name: Restart bareos fd
+  ansible.builtin.service:
+    name: bareos-filedaemon
+    state: restarted

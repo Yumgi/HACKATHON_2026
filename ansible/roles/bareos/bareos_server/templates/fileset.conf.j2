@@ -1,0 +1,15 @@
+FileSet {
+  Name = "{{ item.name }}-fileset"
+  Include {
+{% for path in item.backup_paths %}
+    File = {{ path }}
+{% endfor %}
+  }
+  Exclude {
+    File = /proc
+    File = /sys
+    File = /dev
+    File = /run
+    File = /tmp
+  }
+}

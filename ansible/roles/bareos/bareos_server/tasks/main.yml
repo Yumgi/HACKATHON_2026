@@ -1,0 +1,100 @@
+---
+- name: Install Bareos server packages
+  ansible.builtin.package:
+    name:
+      - bareos
+      - bareos-database-postgresql
+    state: present
+
+- name: Ensure Bareos config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: bareos
+    mode: "0755"
+  loop:
+    - "{{ bareos_dir_conf_path }}/client"
+    - "{{ bareos_dir_conf_path }}/fileset"
+    - "{{ bareos_dir_conf_path }}/job"
+    - "{{ bareos_dir_conf_path }}/schedule"
+    - "{{ bareos_dir_conf_path }}/pool"
+    - "{{ bareos_manual_scripts_path }}"
+
+- name: Deploy Bareos Client resources
+  ansible.builtin.template:
+    src: client.conf.j2
+    dest: "{{ bareos_dir_conf_path }}/client/{{ item.name }}.conf"
+    owner: root
+    group: bareos
+    mode: "0640"
+  loop: "{{ bareos_clients }}"
+  notify: Restart bareos dir
+
+- name: Deploy Bareos FileSet resources
+  ansible.builtin.template:
+    src: fileset.conf.j2
+    dest: "{{ bareos_dir_conf_path }}/fileset/{{ item.name }}-fileset.conf"
+    owner: root
+    group: bareos
+    mode: "0640"
+  loop: "{{ bareos_clients }}"
+  notify: Restart bareos dir
+
+- name: Deploy Bareos Job resources
+  ansible.builtin.template:
+    src: job.conf.j2
+    dest: "{{ bareos_dir_conf_path }}/job/{{ item.name }}-backup.conf"
+    owner: root
+    group: bareos
+    mode: "0640"
+  loop: "{{ bareos_clients }}"
+  notify: Restart bareos dir
+
+- name: Deploy Bareos Schedule resource
+  ansible.builtin.template:
+    src: schedule.conf.j2
+    dest: "{{ bareos_dir_conf_path }}/schedule/{{ bareos_schedule_name }}.conf"
+    owner: root
+    group: bareos
+    mode: "0640"
+  notify: Restart bareos dir
+
+- name: Deploy Bareos Pool resources
+  ansible.builtin.template:
+    src: pools.conf.j2
+    dest: "{{ bareos_dir_conf_path }}/pool/backup-pools.conf"
+    owner: root
+    group: bareos
+    mode: "0640"
+  notify: Restart bareos dir
+
+- name: Deploy manual backup trigger script
+  ansible.builtin.template:
+    src: run_backup.sh.j2
+    dest: "{{ bareos_manual_scripts_path }}/run_bareos_backup.sh"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy restore proof script
+  ansible.builtin.template:
+    src: restore_proof.sh.j2
+    dest: "{{ bareos_manual_scripts_path }}/restore_proof.sh"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Ensure bareos services are enabled and started
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - bareos-director
+    - bareos-storage
+    - bareos-filedaemon
+
+- name: Validate Bareos director configuration
+  ansible.builtin.command: bareos-dir -t
+  changed_when: false

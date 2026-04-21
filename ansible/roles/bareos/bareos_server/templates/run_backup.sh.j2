@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <job-name>"
+  echo "Example: $0 postgres-fd-backup"
+  exit 1
+fi
+
+JOB_NAME="$1"
+
+cat <<EOF | bconsole
+run job=${JOB_NAME} yes
+quit
+EOF

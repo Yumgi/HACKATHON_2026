@@ -1,0 +1,14 @@
+Job {
+  Name = "{{ item.name }}-backup"
+  Type = Backup
+  Level = Incremental
+  Client = {{ item.name }}
+  FileSet = "{{ item.name }}-fileset"
+  Schedule = "{{ bareos_schedule_name }}"
+  Storage = File
+  Messages = Standard
+  Pool = {{ bareos_inc_pool_name }}
+  Full Backup Pool = {{ bareos_full_pool_name }}
+  Priority = 10
+  Write Bootstrap = "/var/lib/bareos/%n.bsr"
+}
