@@ -6,7 +6,7 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://192.168.10.40:3100/loki/api/v1/push
+  - url: http://10.20.0.42:3100/loki/api/v1/push
 
 scrape_configs:
   - job_name: syslog
@@ -43,23 +43,18 @@ scrape_configs:
           status:
           method:
 
-  - job_name: acme-app
+  - job_name: glpi
     static_configs:
       - targets: [localhost]
         labels:
-          job: acme-app
-          host: app
-          __path__: /opt/acme-app/logs/*.log
+          job: glpi
+          host: glpi
+          __path__: /var/log/glpi/*.log
     pipeline_stages:
-      - json:
-          expressions:
-            level: level
-            user: user
-            action: action
-            ip: remote_addr
+      - regex:
+          expression: '^\[(?P<timestamp>[^\]]+)\]\s+(?P<level>\w+):\s+(?P<message>.*)$'
       - labels:
           level:
-          action:
 
   - job_name: freeipa
     static_configs:

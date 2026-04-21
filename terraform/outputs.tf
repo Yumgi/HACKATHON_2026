@@ -1,40 +1,15 @@
-output "freeipa_ip" {
-  value = "192.168.10.10"
-}
-
-output "postgresql_ip" {
-  value = "192.168.10.20"
-}
-
-output "monitoring_ip" {
-  value = "192.168.10.30"
-}
-
-output "loki_ip" {
-  value = "192.168.10.40"
-}
-
-output "bareos_ip" {
-  value = "192.168.10.50"
-}
-
-output "traefik_ip" {
-  value = "192.168.20.10"
-}
-
-output "app_ip" {
-  value = "192.168.20.20"
-}
-
-output "ansible_inventory_hint" {
-  value = <<-EOT
-    Copier dans ansible/inventory/hosts.yml :
-      freeipa    : 192.168.10.10
-      postgresql : 192.168.10.20
-      monitoring : 192.168.10.30
-      loki       : 192.168.10.40
-      bareos     : 192.168.10.50
-      traefik    : 192.168.20.10
-      app        : 192.168.20.20
-  EOT
+output "containers" {
+  description = "Récapitulatif des containers LXC provisionnés"
+  value = {
+    # VLAN 20 — SERVERS
+    freeipa    = { vmid = proxmox_lxc.freeipa.vmid,    ip = "10.20.0.10", os = "Rocky Linux 9",  vlan = 20 }
+    postgresql = { vmid = proxmox_lxc.postgresql.vmid, ip = "10.20.0.20", os = "Debian 12",      vlan = 20 }
+    glpi       = { vmid = proxmox_lxc.glpi.vmid,       ip = "10.20.0.30", os = "Ubuntu 22.04",   vlan = 20 }
+    prometheus = { vmid = proxmox_lxc.prometheus.vmid, ip = "10.20.0.40", os = "Debian 12",      vlan = 20 }
+    grafana    = { vmid = proxmox_lxc.grafana.vmid,    ip = "10.20.0.41", os = "Ubuntu 22.04",   vlan = 20 }
+    loki       = { vmid = proxmox_lxc.loki.vmid,       ip = "10.20.0.42", os = "Debian 12",      vlan = 20 }
+    bareos     = { vmid = proxmox_lxc.bareos.vmid,     ip = "10.20.0.50", os = "Ubuntu 22.04",   vlan = 20 }
+    # VLAN 30 — DMZ
+    traefik    = { vmid = proxmox_lxc.traefik.vmid,    ip = "10.30.0.10", os = "Debian 12",      vlan = 30 }
+  }
 }

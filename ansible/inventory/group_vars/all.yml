@@ -4,54 +4,74 @@
 domain: acme.local
 domain_dc: "dc=acme,dc=local"
 
-# Réseau
-network_servers: "192.168.10.0/24"
-network_dmz: "192.168.20.0/24"
-network_lan: "192.168.1.0/24"
+# ── Réseau ────────────────────────────────────────────────────────────────────
+network_lan:     "10.10.0.0/24"   # VLAN 10 — postes utilisateurs (pfSense LAN)
+network_servers: "10.20.0.0/24"   # VLAN 20 — containers SERVERS  (vmbr2)
+network_dmz:     "10.30.0.0/24"   # VLAN 30 — containers DMZ      (vmbr3)
 
-# IPs des services
-freeipa_ip: "192.168.10.10"
-postgresql_ip: "192.168.10.20"
-monitoring_ip: "192.168.10.30"
-loki_ip: "192.168.10.40"
-bareos_ip: "192.168.10.50"
-traefik_ip: "192.168.20.10"
-app_ip: "192.168.20.20"
+gateway_lan:     "10.10.0.1"
+gateway_servers: "10.20.0.1"
+gateway_dmz:     "10.30.0.1"
 
-# FreeIPA
-freeipa_realm: "ACME.LOCAL"
-freeipa_domain: "acme.local"
-freeipa_admin_user: "admin"
+# ── IPs des services (alignées sur terraform) ─────────────────────────────────
+freeipa_ip:    "10.20.0.10"   # CT 101 — Rocky Linux 9
+postgresql_ip: "10.20.0.20"   # CT 102 — Debian 12
+glpi_ip:       "10.20.0.30"   # CT 103 — Ubuntu 22.04
+prometheus_ip: "10.20.0.40"   # CT 104 — Debian 12
+grafana_ip:    "10.20.0.41"   # CT 105 — Ubuntu 22.04
+loki_ip:       "10.20.0.42"   # CT 106 — Debian 12
+bareos_ip:     "10.20.0.50"   # CT 107 — Ubuntu 22.04
+traefik_ip:    "10.30.0.10"   # CT 201 — Debian 12
+
+# ── FreeIPA (Rocky Linux 9) ───────────────────────────────────────────────────
+freeipa_realm:        "ACME.LOCAL"
+freeipa_domain:       "acme.local"
+freeipa_server_fqdn:  "ipa.acme.local"
+freeipa_admin_user:   "admin"
 freeipa_admin_password: "{{ vault_freeipa_admin_password }}"
-freeipa_ds_password: "{{ vault_freeipa_ds_password }}"
+freeipa_ds_password:    "{{ vault_freeipa_ds_password }}"
 
-# PostgreSQL
-postgresql_version: "15"
-postgresql_app_db: "acme_app"
-postgresql_app_user: "acme"
-postgresql_app_password: "{{ vault_postgresql_app_password }}"
+ipa_password_policies:
+  - group: acme-admins
+    minlife: 1
+    maxlife: 60
+    minlength: 12
+    history: 5
+    minclasses: 3
+    priority: 10
+  - group: acme-users
+    minlife: 1
+    maxlife: 90
+    minlength: 8
+    history: 3
+    minclasses: 2
+    priority: 20
 
-# Grafana
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+postgresql_version:      "15"
+postgresql_glpi_db:      "glpi"
+postgresql_glpi_user:    "glpi"
+postgresql_glpi_password: "{{ vault_postgresql_glpi_password }}"
+
+# ── GLPI ──────────────────────────────────────────────────────────────────────
+glpi_version:   "10.0.15"
+glpi_domain:    "glpi.acme.local"
+glpi_port:      80
+
+# ── Grafana ───────────────────────────────────────────────────────────────────
 grafana_admin_password: "{{ vault_grafana_admin_password }}"
-grafana_domain: "grafana.acme.local"
+grafana_domain:         "grafana.acme.local"
 
-# Application
-app_domain: "app.acme.local"
-app_secret_key: "{{ vault_app_secret_key }}"
-app_port: 5000
+# ── Loki ──────────────────────────────────────────────────────────────────────
+loki_port:   3100
 
-# Loki
-loki_port: 3100
-loki_domain: "loki.acme.local"
-
-# Bareos
+# ── Bareos ────────────────────────────────────────────────────────────────────
 bareos_webui_password: "{{ vault_bareos_webui_password }}"
 
-# Certbot
+# ── Traefik / TLS ─────────────────────────────────────────────────────────────
 certbot_email: "admin@acme.local"
 certbot_domains:
-  - "app.acme.local"
+  - "glpi.acme.local"
   - "grafana.acme.local"
   - "traefik.acme.local"
   - "ipa.acme.local"
-  - "bareos.acme.local"
