@@ -7,7 +7,7 @@
 - name: Créer le groupe dev_servers
   community.general.ipa_group:
     name: dev_servers
-    description: "Serveurs de développement ACME Corp"
+    description: "Utilisateurs développement ACME Corp"
     state: present
     ipa_host: "ipa.{{ domain }}"
     ipa_user: admin
@@ -16,7 +16,7 @@
 - name: Créer le groupe admins
   community.general.ipa_group:
     name: admins
-    description: "Utilisateurs standard ACME Corp"
+    description: "Utilisateurs Admins ACME Corp"
     state: present
     ipa_host: "ipa.{{ domain }}"
     ipa_user: admin
@@ -25,7 +25,7 @@
 - name: Créer le groupe users
   community.general.ipa_group:
     name: users
-    description: "Accès lecture seule"
+    description: "Utilisateurs Standard ACME Corp"
     state: present
     ipa_host: "ipa.{{ domain }}"
     ipa_user: admin
