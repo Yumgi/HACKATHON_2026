@@ -1,6 +1,6 @@
 # Bareos — Ubuntu 22.04 — VLAN 20 SERVERS
 # Le dépôt officiel download.bareos.org cible explicitement xUbuntu_22.04.
-# Disque large (100G) : stockage des dumps PostgreSQL et données GLPI.
+# Disque large (100G) : stockage des dumps PostgreSQL et données applicatives.
 
 resource "proxmox_lxc" "bareos" {
   target_node  = var.proxmox_node

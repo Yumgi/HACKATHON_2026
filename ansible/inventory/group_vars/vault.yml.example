@@ -4,6 +4,6 @@
 
 vault_freeipa_admin_password:  "ChangeMe!FreeIPA"
 vault_freeipa_ds_password:     "ChangeMe!DS"
-vault_postgresql_glpi_password: "ChangeMe!GLPI"
+vault_postgresql_app_password: "ChangeMe!PG"
 vault_grafana_admin_password:  "ChangeMe!Grafana"
 vault_bareos_webui_password:   "ChangeMe!Bareos"

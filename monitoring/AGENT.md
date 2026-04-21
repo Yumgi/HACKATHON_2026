@@ -1,68 +1,79 @@
 # AGENT.md — Monitoring (Prometheus + Grafana + Loki)
 
-## Rôle de ce module
+## Rôle
 
-Centraliser la supervision, les métriques et les logs de l'infrastructure ACME Corp.
+Centraliser la supervision des métriques et des logs de l'infrastructure ACME Corp.
 
-## Composants
+## Containers
 
-| Composant | Port | Rôle |
-|-----------|------|------|
-| Prometheus | 9090 | Scrape métriques, évaluation alertes |
-| Alertmanager | 9093 | Routage et envoi des alertes |
-| Grafana | 3000 | Dashboards métriques + logs |
-| Loki | 3100 | Stockage et requête de logs |
-| Promtail | — | Agent collecte logs (sur chaque hôte) |
-| node_exporter | 9100 | Métriques système Linux |
-| postgres_exporter | 9187 | Métriques PostgreSQL |
+| Service | IP | Port | OS | Rôle |
+|---------|----|------|----|------|
+| Prometheus | 10.20.0.40 | 9090 | Debian 12 | Scrape métriques, évaluation alertes |
+| Alertmanager | 10.20.0.40 | 9093 | Debian 12 | Routage des alertes |
+| Grafana | 10.20.0.41 | 3000 | Ubuntu 22.04 | Dashboards (Prometheus + Loki) |
+| Loki | 10.20.0.42 | 3100 | Debian 12 | Stockage et requête de logs |
+| Promtail | chaque hôte | 9080 | — | Agent collecte logs → Loki |
+| node_exporter | chaque hôte | 9100 | — | Métriques système Linux |
+| postgres_exporter | 10.20.0.20 | 9187 | — | Métriques PostgreSQL |
 
-## Sources de logs centralisées (minimum 2 requis)
+## Sources de logs centralisées
 
-1. **Traefik access.log** — via Promtail → Loki (requêtes HTTP, codes, latences)
-2. **Application Flask** — logs structurés JSON → Promtail → Loki (auth, erreurs, actions)
-3. **Syslog système** — via Promtail → Loki (SSH, cron, kernel)
-4. **FreeIPA / 389-ds** — via Promtail → Loki (connexions LDAP, auth failures)
+| Source | Job Promtail | Contenu |
+|--------|-------------|---------|
+| `syslog` | `syslog` | Kernel, cron, services système |
+| `auth.log` | `auth` | SSH, sudo, PAM |
+| Traefik | `traefik` | Requêtes HTTP, codes, latences |
+| FreeIPA / 389-ds | `freeipa` | Connexions LDAP, échecs d'auth |
 
-## Alertes actives (minimum 2 requis)
+## Alertes actives — `prometheus/alerts/rules.yml`
 
-Voir `prometheus/alerts/rules.yml` :
-- `InstanceDown` — un hôte surveillé est inaccessible
-- `HighCPULoad` — CPU > 80% pendant 5 min
-- `DiskSpaceLow` — espace disque < 15%
-- `PostgreSQLDown` — base de données inaccessible
-- `AppHighErrorRate` — taux d'erreurs HTTP 5xx > 5%
-- `BackupJobFailed` — job Bareos échoué (via log Loki)
+| Alerte | Seuil | Sévérité |
+|--------|-------|----------|
+| `InstanceDown` | target DOWN > 2 min | critical |
+| `HighCPULoad` | CPU > 80% / 5 min | warning |
+| `DiskSpaceLow` | disque < 15% | warning |
+| `HighMemoryUsage` | RAM > 85% / 5 min | warning |
+| `PostgreSQLDown` | pg_up == 0 > 1 min | critical |
+| `PostgreSQLTooManyConnections` | connexions > 80 | warning |
+| `TraefikDown` | traefik UP == 0 > 1 min | critical |
 
-## Dashboards Grafana
+## Dashboards Grafana provisionnés
 
-- `acme-overview.json` — Vue globale infrastructure (CPU, RAM, réseau)
-- `acme-app.json` — Métriques application (requêtes/s, erreurs, latence)
-- `acme-logs.json` — Explorateur Loki avec filtres par service
+- `acme-overview.json` — Vue globale infrastructure (CPU, RAM, réseau, disque)
+- `acme-logs.json` — Explorateur Loki par service
+
+Ajouter un dashboard :
+1. Exporter le JSON depuis Grafana UI
+2. Placer dans `monitoring/grafana/dashboards/`
+3. `ansible-playbook playbooks/monitoring.yml --tags configure --limit grafana`
 
 ## Requêtes Loki utiles
 
 ```logql
-# Erreurs application
-{job="acme-app"} |= "ERROR"
-
 # Connexions LDAP échouées
 {job="freeipa"} |= "INVALID_CREDENTIALS"
 
 # Requêtes Traefik 5xx
 {job="traefik"} | json | status >= 500
 
-# Auth réussies/échouées dernière heure
-{job="acme-app"} |= "login" | json | line_format "{{.level}} {{.user}} {{.result}}"
+# Erreurs SSH (brute force)
+{job="auth"} |= "Failed password"
+
+# Activité syslog critique
+{job="syslog"} | logfmt | level="crit"
 ```
 
-## Ajouter une alerte
+## Ajouter une alerte Prometheus
 
-1. Éditer `prometheus/alerts/rules.yml`
-2. Redéployer : `ansible-playbook playbooks/monitoring.yml --tags alerts`
-3. Vérifier dans Prometheus UI : http://monitoring.acme.local:9090/alerts
+1. Éditer `monitoring/prometheus/alerts/rules.yml`
+2. `ansible-playbook playbooks/monitoring.yml --tags alerts`
+3. Vérifier : `curl http://10.20.0.40:9090/api/v1/rules`
 
-## Ajouter un dashboard
+## Accès
 
-1. Créer/exporter le JSON depuis Grafana UI
-2. Placer dans `monitoring/grafana/dashboards/`
-3. Redéployer : `ansible-playbook playbooks/monitoring.yml --tags configure`
+| Interface | URL (via Traefik) | URL directe |
+|-----------|-------------------|-------------|
+| Grafana | https://grafana.acme.local | http://10.20.0.41:3000 |
+| Prometheus | — (interne) | http://10.20.0.40:9090 |
+| Alertmanager | — (interne) | http://10.20.0.40:9093 |
+| Loki | — (interne) | http://10.20.0.42:3100 |

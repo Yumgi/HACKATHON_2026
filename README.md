@@ -1,29 +1,25 @@
 # ACME Corp — Infrastructure Hackathon 2026
 
 Infrastructure d'entreprise sécurisée, observable et reproductible pour ACME Corp (50 salariés).
+Proxmox 8.3.3 · LXC · Terraform · Ansible
 
 ## Démarrage rapide
 
 ```bash
-# 1. Cloner le dépôt
-git clone <repo> && cd HACKATHON_2026
-
-# 2. Provisionner les VMs (Proxmox requis)
+# 1 — Provisionner les containers LXC
 cd terraform
 cp terraform.tfvars.example terraform.tfvars   # adapter les valeurs
 terraform init && terraform apply
 
-# 3. Configurer toute l'infrastructure
+# 2 — Configurer tous les services
 cd ../ansible
 cp inventory/group_vars/vault.yml.example inventory/group_vars/vault.yml
-ansible-vault edit inventory/group_vars/vault.yml   # renseigner les secrets
-ansible-playbook playbooks/site.yml
+ansible-vault edit inventory/group_vars/vault.yml
+ansible-playbook playbooks/site.yml --ask-vault-pass
 
-# 4. Lancer l'application métier
-cd ../app && docker compose up -d
-
-# 5. Vérifier l'état
-curl -k https://app.acme.local/health
+# 3 — Vérifier
+ansible all -m ping
+curl -sk https://grafana.acme.local/api/health
 ```
 
 ---
@@ -34,206 +30,198 @@ curl -k https://app.acme.local/health
 graph TB
     INTERNET((Internet)):::external
 
-    subgraph WAN["WAN"]
-        PFSENSE[pfSense\n192.168.0.1]:::firewall
+    subgraph WAN["WAN — 10.230.101.0/24"]
+        PFSENSE[pfSense\n10.230.101.254\n→ 10.231.254.254]:::firewall
     end
 
-    subgraph DMZ["DMZ — 192.168.20.0/24"]
-        TRAEFIK[Traefik\n192.168.20.10\n:80/:443]:::proxy
-        APP[App Flask\n192.168.20.20\n:5000]:::app
-        CERTBOT([Certbot / Let's Encrypt]):::cert
+    subgraph DMZ["VLAN 30 — DMZ — 10.30.0.0/24"]
+        TRAEFIK[Traefik\n10.30.0.10\n:80 / :443]:::proxy
+        CERTBOT([Let's Encrypt\nCertbot]):::cert
     end
 
-    subgraph SERVERS["SERVERS — 192.168.10.0/24"]
-        FREEIPA[FreeIPA\n192.168.10.10\n:389/:636/:88]:::identity
-        POSTGRES[PostgreSQL\n192.168.10.20\n:5432]:::db
-        MONITORING[Prometheus + Grafana\n192.168.10.30\n:9090/:3000]:::monitoring
-        LOKI[Loki + Promtail\n192.168.10.40\n:3100]:::logging
-        BAREOS[Bareos\n192.168.10.50\n:9101-9103]:::backup
+    subgraph SERVERS["VLAN 20 — SERVERS — 10.20.0.0/24"]
+        FREEIPA[FreeIPA\n10.20.0.10\nLDAP · Kerberos · DNS]:::identity
+        POSTGRES[PostgreSQL\n10.20.0.20\n:5432]:::db
+        PROMETHEUS[Prometheus\n10.20.0.40\n:9090]:::monitoring
+        GRAFANA[Grafana\n10.20.0.41\n:3000]:::monitoring
+        LOKI[Loki\n10.20.0.42\n:3100]:::logging
+        BAREOS[Bareos\n10.20.0.50\n:9101-9103]:::backup
     end
 
-    subgraph LAN["LAN_USERS — 192.168.1.0/24"]
-        USERS[Postes utilisateurs]:::users
-        ADMIN[Admin]:::admin
+    subgraph LAN["VLAN 10 — LAN — 10.10.0.0/24"]
+        ADMIN[Admin\n10.10.0.10]:::admin
+        USERS[Users DHCP\n10.10.0.100-200]:::users
     end
 
     INTERNET -->|HTTPS :443| PFSENSE
-    PFSENSE -->|NAT forward| TRAEFIK
-    TRAEFIK -->|TLS via| CERTBOT
-    TRAEFIK -->|reverse proxy| APP
-    APP -->|LDAP :389| FREEIPA
-    APP -->|SQL :5432| POSTGRES
+    PFSENSE -->|NAT → VLAN 30| TRAEFIK
+    TRAEFIK -->|TLS| CERTBOT
+    TRAEFIK -->|proxy → VLAN 20| GRAFANA
 
     USERS -->|HTTPS via pfSense| TRAEFIK
+    USERS -->|LDAP :389| FREEIPA
     ADMIN -->|SSH :22| PFSENSE
 
-    APP -.->|logs Promtail| LOKI
-    TRAEFIK -.->|métriques :8080| MONITORING
-    FREEIPA -.->|métriques| MONITORING
-    POSTGRES -.->|métriques pg_exporter| MONITORING
-    LOKI -.->|datasource| MONITORING
+    TRAEFIK -.->|métriques :8080| PROMETHEUS
+    FREEIPA -.->|node_exporter :9100| PROMETHEUS
+    POSTGRES -.->|pg_exporter :9187| PROMETHEUS
+    LOKI -.->|datasource| GRAFANA
+    PROMETHEUS -.->|datasource| GRAFANA
 
-    POSTGRES -.->|backup| BAREOS
-    APP -.->|backup données| BAREOS
+    POSTGRES -.->|backup FD| BAREOS
+    FREEIPA -.->|backup FD| BAREOS
 
-    classDef firewall fill:#e74c3c,color:#fff,stroke:#c0392b
-    classDef proxy fill:#3498db,color:#fff,stroke:#2980b9
-    classDef app fill:#2ecc71,color:#fff,stroke:#27ae60
-    classDef identity fill:#9b59b6,color:#fff,stroke:#8e44ad
-    classDef db fill:#f39c12,color:#fff,stroke:#e67e22
+    classDef firewall  fill:#e74c3c,color:#fff,stroke:#c0392b
+    classDef proxy     fill:#3498db,color:#fff,stroke:#2980b9
+    classDef identity  fill:#9b59b6,color:#fff,stroke:#8e44ad
+    classDef db        fill:#f39c12,color:#fff,stroke:#e67e22
     classDef monitoring fill:#1abc9c,color:#fff,stroke:#16a085
-    classDef logging fill:#34495e,color:#fff,stroke:#2c3e50
-    classDef backup fill:#e67e22,color:#fff,stroke:#d35400
-    classDef users fill:#95a5a6,color:#fff,stroke:#7f8c8d
-    classDef admin fill:#c0392b,color:#fff,stroke:#96281b
-    classDef external fill:#ecf0f1,stroke:#bdc3c7
-    classDef cert fill:#27ae60,color:#fff,stroke:#1e8449
+    classDef logging   fill:#34495e,color:#fff,stroke:#2c3e50
+    classDef backup    fill:#e67e22,color:#fff,stroke:#d35400
+    classDef users     fill:#95a5a6,color:#fff,stroke:#7f8c8d
+    classDef admin     fill:#c0392b,color:#fff,stroke:#96281b
+    classDef external  fill:#ecf0f1,stroke:#bdc3c7
+    classDef cert      fill:#27ae60,color:#fff,stroke:#1e8449
 ```
 
 ---
 
-## Flux d'authentification
+## Containers LXC provisionnés
 
-```mermaid
-sequenceDiagram
-    participant U as Utilisateur
-    participant PF as pfSense
-    participant TR as Traefik
-    participant APP as App Flask
-    participant IPA as FreeIPA (LDAP)
-    participant PG as PostgreSQL
-    participant LK as Loki
-
-    U->>PF: HTTPS :443 → app.acme.local
-    PF->>TR: NAT forward :443
-    TR->>TR: TLS termination (Let's Encrypt)
-    TR->>APP: HTTP :5000
-    APP->>IPA: LDAP bind (uid=user,dc=acme,dc=local)
-    IPA-->>APP: memberOf → groupes/rôles
-    APP->>PG: SELECT / INSERT selon rôle
-    PG-->>APP: données
-    APP-->>TR: 200 OK + HTML
-    TR-->>U: réponse HTTPS chiffrée
-    APP-)LK: log structuré (Promtail → Loki)
-```
+| CT | Hostname | IP | OS | VLAN | Rôle |
+|----|----------|----|----|------|------|
+| 101 | ipa | 10.20.0.10 | Rocky Linux 9 | 20 | FreeIPA — LDAP/Kerberos/DNS |
+| 102 | pg | 10.20.0.20 | Debian 12 | 20 | PostgreSQL 15 |
+| 104 | prometheus | 10.20.0.40 | Debian 12 | 20 | Prometheus + Alertmanager |
+| 105 | grafana | 10.20.0.41 | Ubuntu 22.04 | 20 | Grafana |
+| 106 | loki | 10.20.0.42 | Debian 12 | 20 | Loki + Promtail |
+| 107 | bareos | 10.20.0.50 | Ubuntu 22.04 | 20 | Bareos |
+| 201 | traefik | 10.30.0.10 | Debian 12 | 30 | Traefik reverse proxy |
 
 ---
 
-## Zones et politique firewall résumée
+## Politique firewall résumée
 
 | Source | Destination | Port | Action |
 |--------|-------------|------|--------|
-| WAN | DMZ:Traefik | 443/tcp | ALLOW |
+| WAN | VLAN 30 : Traefik | 443/tcp | ALLOW |
 | WAN | * | * | DENY |
-| DMZ:App | SERVERS:FreeIPA | 389,636/tcp | ALLOW |
-| DMZ:App | SERVERS:PostgreSQL | 5432/tcp | ALLOW |
-| DMZ:App | SERVERS:Loki | 3100/tcp | ALLOW |
-| LAN_USERS | DMZ | 443/tcp | ALLOW |
-| LAN_USERS | SERVERS:FreeIPA | 389,636,88/tcp+udp | ALLOW |
-| SERVERS | SERVERS | * | ALLOW |
-| SERVERS | WAN | 80,443/tcp | ALLOW |
+| VLAN 10 | VLAN 30 : Traefik | 443/tcp | ALLOW |
+| VLAN 10 | VLAN 20 : FreeIPA | 389,636,88/tcp+udp | ALLOW |
+| VLAN 30 | VLAN 20 : Grafana | 3000/tcp | ALLOW |
+| VLAN 20 | VLAN 20 | * | ALLOW |
+| VLAN 20 | WAN | 80,443/tcp | ALLOW |
 
 Politique complète : [docs/firewall-policy.md](docs/firewall-policy.md)
 
 ---
 
-## Services et accès
+## Accès aux services
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Application interne | https://app.acme.local | LDAP (FreeIPA) |
-| Grafana | https://grafana.acme.local | admin / voir vault |
-| FreeIPA WebUI | https://ipa.acme.local | admin / voir vault |
-| Traefik dashboard | https://traefik.acme.local | basic auth |
-| Bareos WebUI | https://bareos.acme.local | admin / voir vault |
+| Service | URL (via Traefik) | Accès direct |
+|---------|-------------------|--------------|
+| Grafana | https://grafana.acme.local | http://10.20.0.41:3000 |
+| FreeIPA WebUI | https://ipa.acme.local | http://10.20.0.10 |
+| Traefik dashboard | https://traefik.acme.local | http://10.30.0.10:8080 |
+| Prometheus | — interne — | http://10.20.0.40:9090 |
+| Alertmanager | — interne — | http://10.20.0.40:9093 |
+| Loki | — interne — | http://10.20.0.42:3100 |
 
 ---
 
-## Arborescence
+## Arborescence du dépôt
 
 ```
 HACKATHON_2026/
 ├── AGENT.md                        # Contexte global agents IA
 ├── README.md                       # Ce fichier
-├── terraform/                      # Provisioning VMs Proxmox
+├── terraform/                      # Provisioning LXC Proxmox
 │   ├── AGENT.md
-│   ├── main.tf
-│   ├── variables.tf
+│   ├── main.tf                     # Provider proxmox
+│   ├── variables.tf                # Réseau, templates, credentials
 │   ├── outputs.tf
 │   ├── terraform.tfvars.example
-│   └── modules/vm/ + modules/network/
-├── ansible/                        # Configuration services
+│   ├── freeipa.tf                  # CT 101
+│   ├── postgresql.tf               # CT 102
+│   ├── prometheus.tf               # CT 104
+│   ├── grafana.tf                  # CT 105
+│   ├── loki.tf                     # CT 106
+│   ├── bareos.tf                   # CT 107
+│   └── traefik.tf                  # CT 201
+├── ansible/                        # Configuration des services
 │   ├── AGENT.md
 │   ├── ansible.cfg
-│   ├── inventory/hosts.yml + group_vars/
+│   ├── inventory/
+│   │   ├── hosts.yml
+│   │   └── group_vars/all.yml + vault.yml
 │   ├── playbooks/site.yml + *.yml
-│   └── roles/ (freeipa, traefik, postgresql, prometheus, grafana, loki, bareos, certbot)
-├── app/                            # Application Flask
-│   ├── AGENT.md + README.md
-│   ├── docker-compose.yml + Dockerfile
-│   └── src/ (app.py, models/, routes/, templates/)
-├── monitoring/                     # Prometheus, Grafana, Loki
+│   └── roles/ (freeipa, postgresql, prometheus, grafana, loki, bareos, traefik, certbot)
+├── monitoring/                     # Configs Prometheus, Grafana, Loki
 │   ├── AGENT.md
-│   ├── prometheus/ + grafana/ + loki/
+│   ├── prometheus/alerts/rules.yml
+│   ├── grafana/dashboards/
+│   └── loki/loki-config.yml + promtail-config.yml
+├── app/                            # Application métier (à définir)
+│   └── AGENT.md
 └── docs/
-    ├── architecture.md
     ├── firewall-policy.md
     └── decisions.md
 ```
 
 ---
 
-## Redéploiement complet (procédure jury — 20 min)
+## Redéploiement complet (procédure jury)
 
 ```bash
-# Prérequis : Proxmox + terraform.tfvars + vault.yml renseignés
+# Prérequis : terraform.tfvars + vault.yml renseignés, bridges vmbr2/vmbr3 sur Proxmox
 
-# Étape 1 — VMs (~5 min)
+# Étape 1 — Containers LXC (~2 min)
 cd terraform && terraform apply -auto-approve
 
 # Étape 2 — Services (~15 min)
-cd ../ansible && ansible-playbook playbooks/site.yml
+cd ../ansible && ansible-playbook playbooks/site.yml --ask-vault-pass
 
-# Étape 3 — Application (~1 min)
-cd ../app && docker compose up -d
-
-# Vérification globale
-curl -sk https://app.acme.local/health | jq
+# Vérification
+ansible all -m ping
+curl -sk https://grafana.acme.local/api/health | jq
+curl http://10.20.0.40:9090/api/v1/query?query=up | jq '.data.result[] | {job:.metric.job, up:.value[1]}'
 ```
 
 ---
 
-## Tests
+## Observabilité
 
 ```bash
-# Healthcheck
-curl -sk https://app.acme.local/health
+# État des targets Prometheus
+curl -s http://10.20.0.40:9090/api/v1/targets | jq '.data.activeTargets[] | {job:.labels.job, health:.health}'
 
-# Test de charge K6
-k6 run app/tests/k6/smoke.js
-k6 run app/tests/k6/load.js
-
-# Test LDAP
-ldapsearch -H ldap://192.168.10.10 \
-  -D "uid=admin,cn=users,cn=accounts,dc=acme,dc=local" \
-  -W -b "dc=acme,dc=local" "(objectClass=posixAccount)"
-
-# Vérifier les métriques Prometheus
-curl http://192.168.10.30:9090/api/v1/query?query=up
+# Requête Loki — erreurs LDAP
+logcli query '{job="freeipa"} |= "INVALID_CREDENTIALS"' --addr=http://10.20.0.42:3100
 ```
 
 ---
 
-## Décisions techniques
+## Sauvegarde et restauration
+
+```bash
+# Déclencher un backup PostgreSQL via bconsole (sur bareos)
+echo -e "run job=backup-postgresql yes\nwait\nquit" | bconsole
+
+# Restauration PostgreSQL
+pg_restore -U postgres -d acme_app /var/backups/postgresql/acme_app_<date>.dump
+```
+
+---
+
+## Décisions techniques — résumé
 
 Voir [docs/decisions.md](docs/decisions.md).
 
 | Choix | Justification |
 |-------|---------------|
-| pfSense | Firewall éprouvé, GUI pour démo rapide, XML restore |
-| Traefik | Auto-découverte Docker, Certbot intégré, dashboard |
-| FreeIPA | LDAP + Kerberos + DNS tout-en-un, UI web incluse |
-| Flask | Léger, lisible jury, LDAP3 simple, 0 magie |
-| Loki | 10x moins lourd qu'ELK, compatible Grafana natif |
-| Bareos | OSS, backup PostgreSQL via bareos-fd, restore CLI |
-| Proxmox/Terraform | IaC reproductible, snapshots pour démo restore |
+| LXC plutôt que VMs | Plus léger, démarrage rapide, adapté au lab Proxmox |
+| pfSense | Firewall éprouvé, GUI pour démo, restauration XML |
+| Traefik | Certbot intégré, dashboard, config dynamique |
+| FreeIPA | LDAP + Kerberos + DNS tout-en-un sur Rocky Linux 9 |
+| Loki | 10× plus léger qu'ELK, natif Grafana |
+| Bareos | OSS, backup PostgreSQL natif, WebUI pour démo |

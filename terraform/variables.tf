@@ -77,7 +77,7 @@ variable "tpl_rhel9" {
 }
 
 variable "tpl_ubuntu2204" {
-  description = "Template Ubuntu 22.04 (Grafana, Bareos, GLPI)"
+  description = "Template Ubuntu 22.04 (Grafana, Bareos)"
   type        = string
   default     = "ISO:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
 }
