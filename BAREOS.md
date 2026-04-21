@@ -30,7 +30,7 @@ Les flux sont autorisés uniquement entre Bareos et les machines sauvegardées, 
 
 Les éléments suivants sont sauvegardés :
 
-* Base de données PostgreSQL (GLPI)
+* Base de données PostgreSQL
 * Configuration FreeIPA
 * Volumes Docker
 * Fichiers système critiques

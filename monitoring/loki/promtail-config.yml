@@ -43,19 +43,6 @@ scrape_configs:
           status:
           method:
 
-  - job_name: glpi
-    static_configs:
-      - targets: [localhost]
-        labels:
-          job: glpi
-          host: glpi
-          __path__: /var/log/glpi/*.log
-    pipeline_stages:
-      - regex:
-          expression: '^\[(?P<timestamp>[^\]]+)\]\s+(?P<level>\w+):\s+(?P<message>.*)$'
-      - labels:
-          level:
-
   - job_name: freeipa
     static_configs:
       - targets: [localhost]

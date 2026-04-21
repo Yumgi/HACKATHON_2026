@@ -1,102 +1,38 @@
-# AGENT.md — Application métier Flask (ACME Corp)
+# AGENT.md — Application métier
 
-## Rôle
+## Statut
 
-Application interne de ticketing léger pour ACME Corp.
-Permet aux employés de créer, consulter, modifier et clore des tickets d'assistance.
+**Application non déployée.** Ce répertoire contient le code de l'ancienne application Flask (ticketing).
+L'application métier définitive est à choisir et à intégrer dans l'infrastructure.
 
-## Stack technique
+## Contraintes du cahier des charges (hackathon)
 
-- **Runtime** : Python 3.11 + Flask
-- **Auth** : LDAP via FreeIPA (ldap3)
-- **Base** : PostgreSQL 15 (psycopg2)
-- **Logs** : structlog (JSON) → Promtail → Loki
-- **Métriques** : prometheus_flask_exporter → Prometheus
-- **Conteneur** : Docker + docker-compose
+L'application doit :
+- Répondre à un besoin interne crédible (ticketing, wiki, intranet, portail RH, etc.)
+- Comporter une authentification LDAP (FreeIPA — `dc=acme,dc=local`)
+- Avoir au moins deux rôles avec droits différents (groupes FreeIPA : `acme-admins`, `acme-users`)
+- Utiliser une persistance réelle (PostgreSQL 15 — `10.20.0.20:5432`)
+- CRUD complet sur une entité métier
+- Logs structurés (JSON) exploitables par Promtail → Loki
+- Endpoint `/health` (healthcheck)
+- Exposée via Traefik (`10.30.0.10`) en HTTPS
 
-## Rôles applicatifs (mappés sur les groupes FreeIPA)
+## Intégration dans l'infra existante
 
-| Groupe LDAP | Rôle app | Droits |
-|-------------|----------|--------|
-| `acme-admins` | Admin | CRUD complet, gestion utilisateurs, accès tous tickets |
-| `acme-users` | User | Créer/lire/modifier ses propres tickets |
-| `acme-readonly` | Viewer | Lecture seule (tous tickets) |
+| Besoin app | Service | IP |
+|-----------|---------|-----|
+| Authentification | FreeIPA (LDAP) | 10.20.0.10:389 |
+| Base de données | PostgreSQL | 10.20.0.20:5432 |
+| Logs | Loki (via Promtail) | 10.20.0.42:3100 |
+| Métriques | Prometheus | 10.20.0.40:9090 |
+| Exposition HTTPS | Traefik | 10.30.0.10:443 |
 
-## Endpoints
+## Pour déployer une application
 
-| Méthode | Route | Auth | Description |
-|---------|-------|------|-------------|
-| GET | `/health` | Non | Healthcheck (200 OK + JSON) |
-| GET | `/metrics` | Non | Métriques Prometheus |
-| POST | `/auth/login` | Non | Login LDAP |
-| POST | `/auth/logout` | Oui | Déconnexion |
-| GET | `/tickets` | Oui | Liste des tickets |
-| POST | `/tickets` | User+ | Créer un ticket |
-| GET | `/tickets/<id>` | Oui | Détail ticket |
-| PUT | `/tickets/<id>` | User+ | Modifier ticket |
-| DELETE | `/tickets/<id>` | Admin | Supprimer ticket |
-| PATCH | `/tickets/<id>/close` | User+ | Clore ticket |
-
-## Configuration (variables d'environnement)
-
-```env
-FLASK_ENV=production
-SECRET_KEY=...
-DATABASE_URL=postgresql://acme:password@192.168.10.20:5432/acme_app
-LDAP_URL=ldap://192.168.10.10
-LDAP_BASE_DN=dc=acme,dc=local
-LDAP_BIND_DN=uid=svc-app,cn=users,cn=accounts,dc=acme,dc=local
-LDAP_BIND_PASSWORD=...
-LOG_LEVEL=INFO
-LOG_FORMAT=json
-```
-
-## Lancer localement (dev)
-
-```bash
-cd app
-python -m venv .venv && source .venv/bin/activate
-pip install -r src/requirements.txt
-cp .env.example .env   # adapter
-flask --app src/app.py run --debug
-```
-
-## Lancer en production (Docker)
-
-```bash
-docker compose up -d
-docker compose logs -f
-```
-
-## Sauvegarde des données
-
-```bash
-# Backup manuel
-docker compose exec db pg_dump acme_app | gzip > backup_$(date +%Y%m%d).sql.gz
-
-# Restauration
-gunzip -c backup_20260421.sql.gz | docker compose exec -T db psql acme_app
-```
-
-## Tests
-
-```bash
-# Healthcheck
-curl http://localhost:5000/health
-
-# K6 smoke test
-k6 run tests/k6/smoke.js
-
-# K6 load test
-k6 run tests/k6/load.js
-```
-
-## Logs applicatifs
-
-Format JSON structuré, incluant :
-- `timestamp`, `level`, `user`, `action`, `ip`, `ticket_id`, `result`
-
-Exemples d'actions loguées :
-- `login_success`, `login_failure`
-- `ticket_create`, `ticket_update`, `ticket_close`, `ticket_delete`
-- `unauthorized_access`
+1. Ajouter le container dans `terraform/app.tf` (Debian 12 ou Ubuntu 22.04, VLAN 20)
+2. Ajouter l'hôte dans `ansible/inventory/hosts.yml` (groupe `app`)
+3. Créer le playbook `ansible/playbooks/app.yml`
+4. Ajouter la route dans `ansible/roles/traefik/templates/dynamic.yml.j2`
+5. Ajouter le scrape dans `ansible/roles/prometheus/templates/prometheus.yml.j2`
+6. Ajouter la source de logs dans `monitoring/loki/promtail-config.yml`
+7. Ajouter le client Bareos dans `ansible/playbooks/bareos.yml`

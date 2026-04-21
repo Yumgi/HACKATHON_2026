@@ -4,8 +4,7 @@ output "containers" {
     # VLAN 20 — SERVERS
     freeipa    = { vmid = proxmox_lxc.freeipa.vmid,    ip = "10.20.0.10", os = "Rocky Linux 9",  vlan = 20 }
     postgresql = { vmid = proxmox_lxc.postgresql.vmid, ip = "10.20.0.20", os = "Debian 12",      vlan = 20 }
-    glpi       = { vmid = proxmox_lxc.glpi.vmid,       ip = "10.20.0.30", os = "Ubuntu 22.04",   vlan = 20 }
-    prometheus = { vmid = proxmox_lxc.prometheus.vmid, ip = "10.20.0.40", os = "Debian 12",      vlan = 20 }
+prometheus = { vmid = proxmox_lxc.prometheus.vmid, ip = "10.20.0.40", os = "Debian 12",      vlan = 20 }
     grafana    = { vmid = proxmox_lxc.grafana.vmid,    ip = "10.20.0.41", os = "Ubuntu 22.04",   vlan = 20 }
     loki       = { vmid = proxmox_lxc.loki.vmid,       ip = "10.20.0.42", os = "Debian 12",      vlan = 20 }
     bareos     = { vmid = proxmox_lxc.bareos.vmid,     ip = "10.20.0.50", os = "Ubuntu 22.04",   vlan = 20 }

@@ -1,5 +1,5 @@
 ---
-- name: Deploy Bareos server
+- name: Bareos — Serveur de sauvegarde
   hosts: bareos_servers
   become: true
   vars:
@@ -16,12 +16,6 @@
     bareos_inc_pool_name: IncPool
 
     bareos_clients:
-      - name: glpi-fd
-        address: 10.20.0.30
-        password: "CHANGE_ME_FD_PASSWORD"
-        backup_paths:
-          - /var/www/html/glpi
-          - /var/lib/glpi
       - name: postgres-fd
         address: 10.20.0.20
         password: "CHANGE_ME_FD_PASSWORD"
@@ -37,7 +31,7 @@
   roles:
     - bareos_server
 
-- name: Deploy Bareos clients
+- name: Bareos — Clients (File Daemon)
   hosts: bareos_clients
   become: true
   vars:

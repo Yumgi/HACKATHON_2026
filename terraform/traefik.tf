@@ -1,6 +1,6 @@
 # Traefik — Debian 12 — VLAN 30 DMZ
 # Reverse proxy HTTPS, point d'entrée unique depuis WAN et LAN.
-# Termine le TLS (Certbot/Let's Encrypt) et proxifie vers GLPI (SERVERS).
+# Termine le TLS (Certbot/Let's Encrypt) et proxifie vers les services SERVERS.
 # nesting=true + keyctl=true : Docker overlay2 dans LXC non privilégié.
 
 resource "proxmox_lxc" "traefik" {

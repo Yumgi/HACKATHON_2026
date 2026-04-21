@@ -1,13 +1,5 @@
 http:
   routers:
-    glpi:
-      rule: "Host(`glpi.{{ domain }}`)"
-      entryPoints: [websecure]
-      service: glpi
-      tls:
-        certResolver: letsencrypt
-      middlewares: [secure-headers]
-
     grafana:
       rule: "Host(`grafana.{{ domain }}`)"
       entryPoints: [websecure]
@@ -25,11 +17,6 @@ http:
       middlewares: [basic-auth, secure-headers]
 
   services:
-    glpi:
-      loadBalancer:
-        servers:
-          - url: "http://{{ glpi_ip }}:{{ glpi_port }}"
-
     grafana:
       loadBalancer:
         servers:
