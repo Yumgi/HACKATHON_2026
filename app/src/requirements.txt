@@ -1,0 +1,9 @@
+flask==3.0.3
+gunicorn==21.2.0
+psycopg2-binary==2.9.9
+ldap3==2.9.1
+flask-sqlalchemy==3.1.1
+flask-login==0.6.3
+structlog==24.1.0
+prometheus-flask-exporter==0.23.0
+python-dotenv==1.0.1

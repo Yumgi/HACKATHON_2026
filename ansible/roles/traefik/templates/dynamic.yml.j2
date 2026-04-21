@@ -1,0 +1,61 @@
+http:
+  routers:
+    app:
+      rule: "Host(`app.{{ domain }}`)"
+      entryPoints: [websecure]
+      service: app
+      tls:
+        certResolver: letsencrypt
+      middlewares: [ldap-auth-headers]
+
+    grafana:
+      rule: "Host(`grafana.{{ domain }}`)"
+      entryPoints: [websecure]
+      service: grafana
+      tls:
+        certResolver: letsencrypt
+
+    traefik-dashboard:
+      rule: "Host(`traefik.{{ domain }}`)"
+      entryPoints: [websecure]
+      service: api@internal
+      tls:
+        certResolver: letsencrypt
+      middlewares: [basic-auth]
+
+  services:
+    app:
+      loadBalancer:
+        servers:
+          - url: "http://{{ app_ip }}:{{ app_port }}"
+
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://{{ monitoring_ip }}:3000"
+
+  middlewares:
+    basic-auth:
+      basicAuth:
+        usersFile: /config/.htpasswd
+
+    ldap-auth-headers:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: https
+
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        browserXssFilter: true
+        contentTypeNosniff: true
+        frameDeny: true
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305

@@ -1,0 +1,27 @@
+---
+- name: FreeIPA — Installation et configuration
+  hosts: identity
+  become: true
+  vars_files:
+    - ../inventory/group_vars/all.yml
+
+  pre_tasks:
+    - name: Mettre à jour le cache apt
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      tags: install
+
+  roles:
+    - role: freeipa
+      tags: [freeipa, identity]
+
+  post_tasks:
+    - name: Vérifier que le service IPA répond
+      uri:
+        url: "https://{{ freeipa_ip }}/ipa/ui/"
+        validate_certs: false
+        status_code: 200
+      retries: 5
+      delay: 10
+      tags: verify

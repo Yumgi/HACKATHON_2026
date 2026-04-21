@@ -1,0 +1,17 @@
+---
+- name: PostgreSQL — Installation et configuration
+  hosts: database
+  become: true
+
+  roles:
+    - role: postgresql
+      tags: [postgresql, database]
+
+  post_tasks:
+    - name: Vérifier la connexion PostgreSQL
+      community.postgresql.postgresql_ping:
+        db: "{{ postgresql_app_db }}"
+        login_host: localhost
+        login_user: "{{ postgresql_app_user }}"
+        login_password: "{{ postgresql_app_password }}"
+      tags: verify

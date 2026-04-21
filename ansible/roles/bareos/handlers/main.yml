@@ -1,0 +1,15 @@
+---
+- name: restart bareos-dir
+  systemd:
+    name: bareos-dir
+    state: restarted
+
+- name: restart bareos-sd
+  systemd:
+    name: bareos-sd
+    state: restarted
+
+- name: restart bareos-fd
+  systemd:
+    name: bareos-fd
+    state: restarted

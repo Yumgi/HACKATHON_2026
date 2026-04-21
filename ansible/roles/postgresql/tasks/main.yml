@@ -1,0 +1,80 @@
+---
+- name: Installer PostgreSQL {{ postgresql_version }}
+  apt:
+    name:
+      - "postgresql-{{ postgresql_version }}"
+      - "postgresql-client-{{ postgresql_version }}"
+      - python3-psycopg2
+      - prometheus-postgres-exporter
+    state: present
+    update_cache: true
+  tags: install
+
+- name: Démarrer PostgreSQL
+  systemd:
+    name: postgresql
+    state: started
+    enabled: true
+  tags: configure
+
+- name: Créer la base de données applicative
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_app_db }}"
+    state: present
+  become_user: postgres
+  tags: configure
+
+- name: Créer l'utilisateur applicatif
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_app_user }}"
+    password: "{{ postgresql_app_password }}"
+    db: "{{ postgresql_app_db }}"
+    priv: ALL
+    state: present
+  become_user: postgres
+  no_log: true
+  tags: configure
+
+- name: Configurer pg_hba.conf (accès réseau DMZ)
+  community.postgresql.postgresql_pg_hba:
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    contype: host
+    databases: "{{ postgresql_app_db }}"
+    users: "{{ postgresql_app_user }}"
+    source: "192.168.20.0/24"
+    method: md5
+    state: present
+  notify: restart postgresql
+  tags: configure
+
+- name: Configurer listen_addresses
+  community.postgresql.postgresql_set:
+    name: listen_addresses
+    value: "localhost,{{ postgresql_ip }}"
+  notify: restart postgresql
+  tags: configure
+
+- name: Déployer le script de backup PostgreSQL
+  template:
+    src: pg_backup.sh.j2
+    dest: /usr/local/bin/pg_backup.sh
+    mode: "0750"
+    owner: postgres
+  tags: backup
+
+- name: Planifier le backup quotidien
+  cron:
+    name: "pg_backup_acme"
+    user: postgres
+    minute: "0"
+    hour: "2"
+    job: "/usr/local/bin/pg_backup.sh >> /var/log/pg_backup.log 2>&1"
+  tags: backup
+
+- name: Configurer postgres-exporter (Prometheus)
+  template:
+    src: postgres_exporter.env.j2
+    dest: /etc/default/prometheus-postgres-exporter
+    mode: "0640"
+  notify: restart postgres-exporter
+  tags: [configure, monitoring]

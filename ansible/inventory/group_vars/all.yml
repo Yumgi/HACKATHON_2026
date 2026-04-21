@@ -1,0 +1,57 @@
+---
+# Variables globales ACME Corp
+
+domain: acme.local
+domain_dc: "dc=acme,dc=local"
+
+# Réseau
+network_servers: "192.168.10.0/24"
+network_dmz: "192.168.20.0/24"
+network_lan: "192.168.1.0/24"
+
+# IPs des services
+freeipa_ip: "192.168.10.10"
+postgresql_ip: "192.168.10.20"
+monitoring_ip: "192.168.10.30"
+loki_ip: "192.168.10.40"
+bareos_ip: "192.168.10.50"
+traefik_ip: "192.168.20.10"
+app_ip: "192.168.20.20"
+
+# FreeIPA
+freeipa_realm: "ACME.LOCAL"
+freeipa_domain: "acme.local"
+freeipa_admin_user: "admin"
+freeipa_admin_password: "{{ vault_freeipa_admin_password }}"
+freeipa_ds_password: "{{ vault_freeipa_ds_password }}"
+
+# PostgreSQL
+postgresql_version: "15"
+postgresql_app_db: "acme_app"
+postgresql_app_user: "acme"
+postgresql_app_password: "{{ vault_postgresql_app_password }}"
+
+# Grafana
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
+grafana_domain: "grafana.acme.local"
+
+# Application
+app_domain: "app.acme.local"
+app_secret_key: "{{ vault_app_secret_key }}"
+app_port: 5000
+
+# Loki
+loki_port: 3100
+loki_domain: "loki.acme.local"
+
+# Bareos
+bareos_webui_password: "{{ vault_bareos_webui_password }}"
+
+# Certbot
+certbot_email: "admin@acme.local"
+certbot_domains:
+  - "app.acme.local"
+  - "grafana.acme.local"
+  - "traefik.acme.local"
+  - "ipa.acme.local"
+  - "bareos.acme.local"

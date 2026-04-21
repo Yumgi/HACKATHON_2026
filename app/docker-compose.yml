@@ -1,0 +1,45 @@
+services:
+  app:
+    build: .
+    container_name: acme-app
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - app_logs:/opt/acme-app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.acme-app.rule=Host(`app.acme.local`)"
+      - "traefik.http.routers.acme-app.entrypoints=websecure"
+      - "traefik.http.routers.acme-app.tls.certresolver=letsencrypt"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  db:
+    image: postgres:15-alpine
+    container_name: acme-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: acme_app
+      POSTGRES_USER: acme
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./src/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acme -d acme_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+  app_logs:

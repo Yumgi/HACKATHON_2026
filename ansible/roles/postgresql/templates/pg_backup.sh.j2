@@ -1,0 +1,24 @@
+#!/bin/bash
+# Backup PostgreSQL — ACME Corp
+# Généré par Ansible — ne pas modifier manuellement
+
+BACKUP_DIR="/var/backups/postgresql"
+DB="{{ postgresql_app_db }}"
+DATE=$(date +%Y%m%d_%H%M%S)
+RETENTION_DAYS=7
+
+mkdir -p "$BACKUP_DIR"
+
+echo "[$(date)] Début du backup de $DB"
+pg_dump "$DB" | gzip > "$BACKUP_DIR/${DB}_${DATE}.sql.gz"
+
+if [ $? -eq 0 ]; then
+    echo "[$(date)] Backup réussi : ${DB}_${DATE}.sql.gz"
+else
+    echo "[$(date)] ERREUR backup $DB" >&2
+    exit 1
+fi
+
+# Nettoyage des anciens backups
+find "$BACKUP_DIR" -name "${DB}_*.sql.gz" -mtime +${RETENTION_DAYS} -delete
+echo "[$(date)] Fin du backup"

@@ -1,0 +1,17 @@
+---
+- name: Traefik — Reverse proxy HTTPS
+  hosts: proxy
+  become: true
+
+  roles:
+    - role: certbot
+      tags: [certbot, tls]
+    - role: traefik
+      tags: [traefik, proxy]
+
+  post_tasks:
+    - name: Vérifier Traefik healthcheck
+      uri:
+        url: "http://{{ traefik_ip }}:8080/ping"
+        status_code: 200
+      tags: verify

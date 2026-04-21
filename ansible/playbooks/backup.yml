@@ -1,0 +1,36 @@
+---
+- name: Bareos — Serveur de sauvegarde
+  hosts: backup
+  become: true
+
+  roles:
+    - role: bareos
+      tags: [bareos, backup]
+
+- name: Bareos — Clients (File Daemon) sur les hôtes à sauvegarder
+  hosts: database:app
+  become: true
+
+  tasks:
+    - name: Installer bareos-filedaemon
+      include_role:
+        name: bareos
+        tasks_from: filedaemon
+      tags: [bareos, backup, fd]
+
+- name: Déclencher un backup de test
+  hosts: backup
+  become: true
+
+  tasks:
+    - name: Lancer le job de backup PostgreSQL
+      command: bconsole -c /etc/bareos/bconsole.conf
+      args:
+        stdin: "run job=backup-postgresql yes\nwait\nstatus dir\nquit\n"
+      register: backup_result
+      tags: [backup, test]
+
+    - name: Afficher le résultat du backup
+      debug:
+        var: backup_result.stdout_lines
+      tags: [backup, test]

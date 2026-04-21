@@ -1,0 +1,73 @@
+---
+- name: Créer l'utilisateur loki
+  user:
+    name: loki
+    system: true
+    shell: /bin/false
+    create_home: false
+  tags: install
+
+- name: Télécharger Loki
+  get_url:
+    url: "https://github.com/grafana/loki/releases/download/v{{ loki_version }}/loki-linux-amd64.zip"
+    dest: /tmp/loki.zip
+    mode: "0644"
+  tags: install
+
+- name: Décompresser Loki
+  unarchive:
+    src: /tmp/loki.zip
+    dest: /usr/local/bin/
+    remote_src: true
+  args:
+    creates: /usr/local/bin/loki-linux-amd64
+  tags: install
+
+- name: Lien symbolique loki
+  file:
+    src: /usr/local/bin/loki-linux-amd64
+    dest: /usr/local/bin/loki
+    state: link
+  tags: install
+
+- name: Créer les répertoires Loki
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: loki
+    group: loki
+    mode: "0755"
+  loop:
+    - /etc/loki
+    - /var/lib/loki
+    - /var/lib/loki/chunks
+    - /var/lib/loki/index
+  tags: configure
+
+- name: Déployer loki-config.yml
+  copy:
+    src: "{{ playbook_dir }}/../monitoring/loki/loki-config.yml"
+    dest: /etc/loki/config.yml
+    owner: loki
+    group: loki
+    mode: "0644"
+  notify: restart loki
+  tags: configure
+
+- name: Déployer le service systemd Loki
+  template:
+    src: loki.service.j2
+    dest: /etc/systemd/system/loki.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart loki
+  tags: configure
+
+- name: Démarrer Loki
+  systemd:
+    name: loki
+    state: started
+    enabled: true
+    daemon_reload: true
+  tags: configure

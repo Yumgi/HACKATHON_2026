@@ -1,0 +1,5 @@
+---
+freeipa_realm: "ACME.LOCAL"
+freeipa_domain: "acme.local"
+freeipa_ip: "192.168.10.10"
+freeipa_admin_user: admin

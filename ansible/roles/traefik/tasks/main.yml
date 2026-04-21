@@ -1,0 +1,53 @@
+---
+- name: Installer Docker
+  include_tasks: docker.yml
+  tags: install
+
+- name: Créer les répertoires Traefik
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /opt/traefik
+    - /opt/traefik/config
+    - /opt/traefik/certs
+    - /opt/traefik/logs
+  tags: configure
+
+- name: Déployer traefik.yml (config statique)
+  template:
+    src: traefik.yml.j2
+    dest: /opt/traefik/traefik.yml
+    mode: "0644"
+  notify: restart traefik
+  tags: configure
+
+- name: Déployer la config dynamique des routes
+  template:
+    src: dynamic.yml.j2
+    dest: /opt/traefik/config/dynamic.yml
+    mode: "0644"
+  notify: restart traefik
+  tags: configure
+
+- name: Déployer le fichier d'authentification basic auth
+  template:
+    src: htpasswd.j2
+    dest: /opt/traefik/config/.htpasswd
+    mode: "0640"
+  tags: configure
+
+- name: Déployer docker-compose Traefik
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/traefik/docker-compose.yml
+    mode: "0644"
+  notify: restart traefik
+  tags: configure
+
+- name: Démarrer Traefik
+  community.docker.docker_compose_v2:
+    project_src: /opt/traefik
+    state: present
+  tags: [configure, restart]
