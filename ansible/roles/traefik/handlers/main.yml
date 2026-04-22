@@ -1,10 +1,6 @@
 ---
-- name: restart docker
-  systemd:
-    name: docker
-    state: restarted
-
 - name: restart traefik
-  command: docker compose -f /opt/traefik/docker-compose.yml restart traefik
-  args:
-    chdir: /opt/traefik
+  systemd:
+    name: traefik
+    state: restarted
+    daemon_reload: true

@@ -21,11 +21,8 @@ entryPoints:
 
 providers:
   file:
-    directory: /config
+    directory: /opt/traefik/config
     watch: true
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
 
 # Ignore les certs auto-signés des backends (FreeIPA, pfSense)
 serversTransport:
@@ -33,10 +30,10 @@ serversTransport:
 
 log:
   level: INFO
-  filePath: /logs/traefik.log
+  filePath: /opt/traefik/logs/traefik.log
 
 accessLog:
-  filePath: /logs/access.log
+  filePath: /opt/traefik/logs/access.log
   fields:
     headers:
       names:

@@ -1,5 +1,5 @@
 ---
-- name: Traefik — Reverse proxy HTTPS + Step-CA PKI privée
+- name: Traefik — Reverse proxy HTTPS + PKI wildcard interne
   hosts: proxy
   become: true
 
@@ -8,7 +8,7 @@
       tags: [traefik, proxy]
 
   post_tasks:
-    - name: Vérifier Traefik healthcheck
+    - name: Vérifier Traefik ping
       uri:
         url: "http://{{ traefik_ip }}:8080/ping"
         status_code: 200
