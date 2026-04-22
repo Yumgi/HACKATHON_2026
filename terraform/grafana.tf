@@ -34,12 +34,7 @@ resource "proxmox_lxc" "grafana" {
     keyctl  = false
   }
 
-  initialization {
-    hostname = "grafana.${var.domain}"
-    dns {
-      server = "10.20.0.10"
-    }
-  }
+  nameserver = "10.20.0.10"
 
   depends_on = [proxmox_lxc.prometheus]
 }

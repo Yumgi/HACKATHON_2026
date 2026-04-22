@@ -35,12 +35,7 @@ resource "proxmox_lxc" "postgresql" {
     keyctl  = false
   }
 
-  initialization {
-    hostname = "pg.${var.domain}"
-    dns {
-      server = "10.20.0.10"
-    }
-  }
+  nameserver = "10.20.0.10"
 
   depends_on = [proxmox_lxc.freeipa]
 }

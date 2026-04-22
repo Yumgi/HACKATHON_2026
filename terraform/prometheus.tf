@@ -34,10 +34,5 @@ resource "proxmox_lxc" "prometheus" {
     keyctl  = false
   }
 
-  initialization {
-    hostname = "prometheus.${var.domain}"
-    dns {
-      server = "10.20.0.10"
-    }
-  }
+  nameserver = "10.20.0.10"
 }

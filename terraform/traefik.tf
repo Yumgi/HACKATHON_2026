@@ -36,10 +36,5 @@ resource "proxmox_lxc" "traefik" {
     keyctl  = true   # overlay2 filesystem
   }
 
-  initialization {
-    hostname = "traefik.${var.domain}"
-    dns {
-      server = "10.20.0.10"
-    }
-  }
+  nameserver = "10.20.0.10"
 }
