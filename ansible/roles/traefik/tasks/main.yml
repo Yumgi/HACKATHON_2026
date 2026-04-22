@@ -180,7 +180,7 @@
 
 - name: Attendre que Traefik réponde sur :8080
   uri:
-    url: "http://{{ traefik_ip }}:8080/ping"
+    url: "http://{{ traefik_ip }}:8080/api/version"
     status_code: 200
   retries: 10
   delay: 3
