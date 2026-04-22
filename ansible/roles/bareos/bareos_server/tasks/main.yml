@@ -55,6 +55,15 @@
     enabled: true
   tags: configure
 
+- name: Autoriser l'utilisateur bareos dans pg_hba.conf
+  lineinfile:
+    path: /etc/postgresql/14/main/pg_hba.conf
+    line: "local   all             bareos                                  md5"
+    insertbefore: "^local.*all.*all.*peer"
+    state: present
+  notify: Restart postgresql
+  tags: configure
+
 - name: Vérifier si le catalogue Bareos existe déjà
   become_user: postgres
   command: psql -tAc "SELECT 1 FROM pg_database WHERE datname='bareos'"

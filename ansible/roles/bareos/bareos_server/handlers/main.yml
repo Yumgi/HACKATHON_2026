@@ -8,3 +8,8 @@
   systemd:
     name: bareos-storage
     state: restarted
+
+- name: Restart postgresql
+  systemd:
+    name: postgresql
+    state: restarted
