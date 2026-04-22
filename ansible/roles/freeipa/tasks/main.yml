@@ -8,6 +8,27 @@
     update_cache: true
   tags: install
 
+- name: Installer les outils DNF de base et EPEL
+  dnf:
+    name: 
+      - dnf-plugins-core
+      - epel-release
+    state: present
+  tags: install
+
+- name: Activer le dépôt CRB (CodeReady Builder)
+  command: dnf config-manager --set-enabled crb
+  register: crb_status
+  changed_when: false # Évite qu'Ansible marque "changed" à chaque exécution
+  tags: install
+
+- name: Rafraîchir le cache DNF
+  command: dnf makecache
+  args:
+    warn: false
+  changed_when: false
+  tags: install
+  
 - name: Installer FreeIPA server + DNS
   dnf:
     name:
