@@ -150,7 +150,12 @@
   when: not ipa_installed.stat.exists
   register: ipa_install_result
   changed_when: ipa_install_result.rc == 0
-  no_log: true  # Masquer les mots de passe dans les logs
+  tags: install
+
+- name: Afficher la sortie de ipa-server-install (debug)
+  debug:
+    msg: "{{ ipa_install_result.stdout_lines | default([]) + ipa_install_result.stderr_lines | default([]) }}"
+  when: ipa_install_result is defined and ipa_install_result.rc is defined and ipa_install_result.rc != 0
   tags: install
 
 # ── 7. Service IPA ─────────────────────────────────────────────────────────────
