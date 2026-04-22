@@ -1,28 +1,8 @@
 services:
-  step-ca:
-    image: smallstep/step-ca:latest
-    container_name: step-ca
-    volumes:
-      - /opt/traefik/step-ca:/home/step
-    environment:
-      - DOCKER_STEPCA_INIT_NAME=ACME Corp Internal CA
-      - DOCKER_STEPCA_INIT_DNS_NAMES=step-ca,{{ traefik_ip }}
-      - DOCKER_STEPCA_INIT_ADDRESS=:9000
-      - DOCKER_STEPCA_INIT_PROVISIONER_NAME=acme
-      - DOCKER_STEPCA_INIT_ACME=true
-      - DOCKER_STEPCA_INIT_PASSWORD={{ vault_traefik_dashboard_password }}
-    ports:
-      - "9000:9000"
-    restart: unless-stopped
-    networks:
-      - traefik-net
-
   traefik:
     image: traefik:v3.1
     container_name: traefik
     restart: unless-stopped
-    depends_on:
-      - step-ca
     ports:
       - "80:80"
       - "443:443"
@@ -31,17 +11,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /opt/traefik/traefik.yml:/traefik.yml:ro
       - /opt/traefik/config:/config:ro
-      - /opt/traefik/certs:/certs
+      - /opt/traefik/certs:/certs:ro
       - /opt/traefik/logs:/logs
-      - /opt/traefik/step-ca/certs/root_ca.crt:/usr/local/share/ca-certificates/step-ca.crt:ro
     environment:
       - TZ=Europe/Paris
-      - LEGO_CA_CERTIFICATES=/usr/local/share/ca-certificates/step-ca.crt
-    networks:
-      - traefik-net
     labels:
       - "traefik.enable=false"
-
-networks:
-  traefik-net:
-    driver: bridge

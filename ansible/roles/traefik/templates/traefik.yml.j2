@@ -19,15 +19,6 @@ entryPoints:
   traefik:
     address: ":8080"
 
-certificatesResolvers:
-  stepca:
-    acme:
-      email: "{{ certbot_email }}"
-      storage: /certs/acme-internal.json
-      caServer: "https://step-ca:9000/acme/acme/directory"
-      httpChallenge:
-        entryPoint: web
-
 providers:
   file:
     directory: /config
@@ -36,6 +27,7 @@ providers:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
 
+# Ignore les certs auto-signés des backends (FreeIPA, pfSense)
 serversTransport:
   insecureSkipVerify: true
 

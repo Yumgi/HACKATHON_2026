@@ -3,13 +3,15 @@
   include_tasks: docker.yml
   tags: install
 
-- name: Installer apache2-utils (htpasswd)
+- name: Installer apache2-utils (htpasswd) et openssl
   apt:
-    name: apache2-utils
+    name:
+      - apache2-utils
+      - openssl
     state: present
   tags: install
 
-- name: Créer les répertoires Traefik et Step-CA
+- name: Créer les répertoires Traefik
   file:
     path: "{{ item }}"
     state: directory
@@ -19,14 +21,93 @@
     - /opt/traefik/config
     - /opt/traefik/certs
     - /opt/traefik/logs
-    - /opt/traefik/step-ca
   tags: configure
+
+# ── PKI interne — CA + wildcard cert ──────────────────────────────────────────
+
+- name: Générer la clé du CA interne
+  command: openssl genrsa -out /opt/traefik/certs/ca.key 4096
+  args:
+    creates: /opt/traefik/certs/ca.key
+  tags: [configure, pki]
+
+- name: Générer le certificat CA (10 ans)
+  command: >-
+    openssl req -new -x509 -days 3650
+    -key /opt/traefik/certs/ca.key
+    -out /opt/traefik/certs/ca.crt
+    -subj "/CN=ACME Corp Internal CA/O=ACME Corp/C=FR"
+  args:
+    creates: /opt/traefik/certs/ca.crt
+  tags: [configure, pki]
+
+- name: Déployer le fichier de config SAN (wildcard .tech + .lan)
+  copy:
+    dest: /opt/traefik/certs/san.cnf
+    content: |
+      [req]
+      req_extensions = v3_req
+      distinguished_name = req_distinguished_name
+      [req_distinguished_name]
+      [v3_req]
+      subjectAltName = @alt_names
+      basicConstraints = CA:FALSE
+      keyUsage = digitalSignature, keyEncipherment
+      extendedKeyUsage = serverAuth
+      [alt_names]
+      DNS.1 = *.{{ domain_ext }}
+      DNS.2 = {{ domain_ext }}
+      DNS.3 = *.{{ domain_lan }}
+      DNS.4 = {{ domain_lan }}
+    mode: "0644"
+  tags: [configure, pki]
+
+- name: Générer la clé du certificat wildcard
+  command: openssl genrsa -out /opt/traefik/certs/wildcard.key 2048
+  args:
+    creates: /opt/traefik/certs/wildcard.key
+  tags: [configure, pki]
+
+- name: Générer la CSR wildcard
+  command: >-
+    openssl req -new
+    -key /opt/traefik/certs/wildcard.key
+    -out /opt/traefik/certs/wildcard.csr
+    -subj "/CN=*.{{ domain_ext }}/O=ACME Corp/C=FR"
+    -config /opt/traefik/certs/san.cnf
+  args:
+    creates: /opt/traefik/certs/wildcard.csr
+  tags: [configure, pki]
+
+- name: Signer le certificat wildcard avec le CA interne (2 ans)
+  command: >-
+    openssl x509 -req -days 730
+    -in /opt/traefik/certs/wildcard.csr
+    -CA /opt/traefik/certs/ca.crt
+    -CAkey /opt/traefik/certs/ca.key
+    -CAcreateserial
+    -out /opt/traefik/certs/wildcard.crt
+    -extensions v3_req
+    -extfile /opt/traefik/certs/san.cnf
+  args:
+    creates: /opt/traefik/certs/wildcard.crt
+  tags: [configure, pki]
+
+- name: Récupérer le CA root en local (à importer dans les navigateurs)
+  fetch:
+    src: /opt/traefik/certs/ca.crt
+    dest: "{{ playbook_dir }}/../../acme-corp-ca.crt"
+    flat: true
+  tags: [configure, pki]
+
+# ── Config Traefik ─────────────────────────────────────────────────────────────
 
 - name: Déployer traefik.yml (config statique)
   template:
     src: traefik.yml.j2
     dest: /opt/traefik/traefik.yml
     mode: "0644"
+  notify: restart traefik
   tags: configure
 
 - name: Déployer la config dynamique des routes
@@ -34,10 +115,11 @@
     src: dynamic.yml.j2
     dest: /opt/traefik/config/dynamic.yml
     mode: "0644"
+  notify: restart traefik
   tags: configure
 
 - name: Générer le fichier htpasswd
-  command: >
+  command: >-
     htpasswd -cbB /opt/traefik/config/.htpasswd
     {{ traefik_dashboard_user }}
     {{ traefik_dashboard_password }}
@@ -50,43 +132,12 @@
     src: docker-compose.yml.j2
     dest: /opt/traefik/docker-compose.yml
     mode: "0644"
+  notify: restart traefik
   tags: configure
 
-# ── Step-CA ────────────────────────────────────────────────────────────────────
-- name: Démarrer Step-CA
-  command: docker compose -f /opt/traefik/docker-compose.yml up -d step-ca
-  args:
-    chdir: /opt/traefik
-  changed_when: true
-  tags: [configure, stepca]
+# ── Démarrage ─────────────────────────────────────────────────────────────────
 
-- name: Attendre que Step-CA génère le root CA (max 90s)
-  wait_for:
-    path: /opt/traefik/step-ca/certs/root_ca.crt
-    state: present
-    timeout: 90
-  tags: [configure, stepca]
-
-- name: Attendre que l'endpoint ACME de Step-CA réponde
-  uri:
-    url: "https://{{ traefik_ip }}:9000/acme/acme/directory"
-    validate_certs: false
-    status_code: 200
-  register: stepca_ready
-  retries: 18
-  delay: 5
-  until: stepca_ready.status == 200
-  tags: [configure, stepca]
-
-- name: Récupérer le root CA Step-CA en local (pour import navigateurs)
-  fetch:
-    src: /opt/traefik/step-ca/certs/root_ca.crt
-    dest: "{{ playbook_dir }}/../../step-ca-root.crt"
-    flat: true
-  tags: [configure, stepca]
-
-# ── Traefik ────────────────────────────────────────────────────────────────────
-- name: Démarrer la stack complète (Step-CA + Traefik)
+- name: Démarrer Traefik
   command: docker compose -f /opt/traefik/docker-compose.yml up -d
   args:
     chdir: /opt/traefik

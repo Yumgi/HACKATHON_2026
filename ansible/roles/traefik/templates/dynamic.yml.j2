@@ -4,65 +4,56 @@ http:
       rule: "Host(`grafana.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: grafana
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [secure-headers]
 
     prometheus:
       rule: "Host(`prometheus.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: prometheus
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [basic-auth, secure-headers]
 
     loki:
       rule: "Host(`loki.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: loki
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [basic-auth, secure-headers]
 
     bareos:
       rule: "Host(`bareos.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: bareos
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [secure-headers]
 
     freeipa:
       rule: "Host(`ipa.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: freeipa
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [secure-headers]
 
     pfsense:
       rule: "Host(`pfsense.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: pfsense
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [secure-headers]
 
     traefik-dashboard:
       rule: "Host(`traefik.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: api@internal
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [basic-auth, secure-headers]
 
-    # Intranet — domaine .lan, même CA privé
     intranet:
       rule: "Host(`intranet.{{ domain_lan }}`)"
       entryPoints: [websecure]
       service: grafana
-      tls:
-        certResolver: stepca
+      tls: {}
       middlewares: [secure-headers]
 
   services:
@@ -112,6 +103,9 @@ http:
         frameDeny: true
 
 tls:
+  certificates:
+    - certFile: /certs/wildcard.crt
+      keyFile: /certs/wildcard.key
   options:
     default:
       minVersion: VersionTLS12
