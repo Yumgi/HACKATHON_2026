@@ -92,7 +92,7 @@ http:
   middlewares:
     basic-auth:
       basicAuth:
-        usersFile: /config/.htpasswd
+        usersFile: /opt/traefik/config/.htpasswd
 
     secure-headers:
       headers:
@@ -104,8 +104,8 @@ http:
 
 tls:
   certificates:
-    - certFile: /certs/wildcard.crt
-      keyFile: /certs/wildcard.key
+    - certFile: /opt/traefik/certs/wildcard.crt
+      keyFile: /opt/traefik/certs/wildcard.key
   options:
     default:
       minVersion: VersionTLS12
