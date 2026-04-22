@@ -1,7 +1,7 @@
 variable "proxmox_api_url" {
-  description = "URL de l'API Proxmox (ex: https://proxmox-01:8006/api2/json)"
+  description = "URL de l'API Proxmox (ex: https://10.229.0.2:8006/api2/json)"
   type        = string
-  default     = "https://proxmox-01:8006/api2/json"
+  default     = "https://10.229.0.2:8006/api2/json"
 }
 
 variable "proxmox_user" {
@@ -19,7 +19,7 @@ variable "proxmox_password" {
 variable "proxmox_node" {
   description = "Nom du nœud Proxmox cible"
   type        = string
-  default     = "proxmox-01"
+  default     = "proxmox-02"
 }
 
 variable "storage_pool" {

@@ -1,8 +1,8 @@
 # ─── Connexion Proxmox ────────────────────────────────────────────────────────
-proxmox_api_url  = "https://proxmox-01:8006/api2/json"
+proxmox_api_url  = "https://10.229.0.2:8006/api2/json"
 proxmox_user     = "s.lefebvre@LAB-LYON"
 proxmox_password = "CHANGE_ME"
-proxmox_node     = "proxmox-01"
+proxmox_node     = "proxmox-02"
 storage_pool     = "local-lvm"
 
 # ─── SSH ──────────────────────────────────────────────────────────────────────

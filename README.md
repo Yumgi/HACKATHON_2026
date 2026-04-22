@@ -30,8 +30,8 @@ curl -sk https://grafana.acme.local/api/health
 graph TB
     INTERNET((Internet)):::external
 
-    subgraph WAN["WAN — 10.230.101.0/24"]
-        PFSENSE[pfSense\n10.230.101.254\n→ 10.231.254.254]:::firewall
+    subgraph WAN["WAN — 10.229.0.0/24"]
+        PFSENSE[pfSense\n10.229.0.254\n→ 10.231.254.254]:::firewall
     end
 
     subgraph DMZ["VLAN 30 — DMZ — 10.30.0.0/24"]

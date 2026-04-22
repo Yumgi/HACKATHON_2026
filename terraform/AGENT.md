@@ -27,7 +27,7 @@ terraform/
 | VLAN 10 | LAN Users | 10.10.0.0/24 | 10.10.0.1 (pfSense) |
 | VLAN 20 | SERVERS | 10.20.0.0/24 | 10.20.0.1 (pfSense) |
 | VLAN 30 | DMZ | 10.30.0.0/24 | 10.30.0.1 (pfSense) |
-| WAN | — | 10.230.101.254/24 | 10.231.254.254 |
+| WAN | — | 10.229.0.2 (Proxmox) | — |
 
 ## Containers et choix d'OS
 

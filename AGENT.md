@@ -10,7 +10,7 @@ Hyperviseur : Proxmox 8.3.3 — containers LXC.
 
 | Composant | Rôle | IP | OS | VLAN |
 |-----------|------|----|----|------|
-| pfSense | Routeur / Firewall inter-VLAN | WAN 10.230.101.254 | pfSense CE | WAN + 10/20/30 |
+| pfSense | Routeur / Firewall inter-VLAN | WAN 10.229.0.254 | pfSense CE | WAN + 10/20/30 |
 | FreeIPA | Annuaire LDAP + Kerberos + DNS | 10.20.0.10 | Rocky Linux 9 | VLAN 20 |
 | PostgreSQL | Base de données | 10.20.0.20 | Debian 12 | VLAN 20 |
 | Prometheus | Métriques + Alertmanager | 10.20.0.40 | Debian 12 | VLAN 20 |
@@ -25,7 +25,7 @@ Hyperviseur : Proxmox 8.3.3 — containers LXC.
 
 | VLAN | Nom | Réseau | Passerelle | Usage |
 |------|-----|--------|------------|-------|
-| — | WAN | 10.230.101.0/24 | 10.231.254.254 | Accès Internet |
+| — | WAN | 10.229.0.0/24 | 10.231.254.254 | Accès Internet |
 | 10 | LAN | 10.10.0.0/24 | 10.10.0.1 | Postes utilisateurs + admin |
 | 20 | SERVERS | 10.20.0.0/24 | 10.20.0.1 | Services internes |
 | 30 | DMZ | 10.30.0.0/24 | 10.30.0.1 | Services exposés |
