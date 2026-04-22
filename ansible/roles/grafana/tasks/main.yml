@@ -22,9 +22,11 @@
     filename: grafana
   tags: install
 
-- name: Installer Grafana
+- name: Installer Grafana et utilitaires
   apt:
-    name: grafana
+    name:
+      - grafana
+      - curl
     state: present
     update_cache: true
   tags: install
@@ -91,5 +93,6 @@
   retries: 15
   delay: 5
   register: grafana_health
-  until: grafana_health.status == 200
+  until: grafana_health.status is defined and grafana_health.status == 200
+  failed_when: false
   tags: configure
