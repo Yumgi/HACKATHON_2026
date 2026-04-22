@@ -2,9 +2,6 @@
 - name: FreeIPA — Installation et configuration
   hosts: identity
   become: true
-  vars_files:
-    - ../inventory/group_vars/all.yml
-
   roles:
     - role: freeipa
       tags: [freeipa, identity]

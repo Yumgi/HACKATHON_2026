@@ -1,0 +1,11 @@
+---
+vault_freeipa_admin_password:  "root"
+vault_freeipa_ds_password:     "root"
+vault_postgresql_app_password: "Azerty1234*!"
+vault_grafana_admin_password:  "Azerty1234*!"
+vault_bareos_webui_password:   "Azerty1234*!"
+vault_bareos_fd_password:      "Azerty1234*!"
+vault_traefik_dashboard_password: "Azerty1234*!"
+
+vault_ssh_public_key:  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOyS5T1cuhVT31nUSkUM/55e+lDMTRvsPOkKFyV4AiJ8 hackathon2026@myskolae.fr"
+vault_ssh_private_key: "-----BEGIN OPENSSH PRIVATE KEY-----b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQyNTUxOQAAACDskuU9XLoVU99Z1EpFDP+eXvpQzE0b7DzpChcleAIifAAAAKBFvi4TRb4uEwAAAAtzc2gtZWQyNTUxOQAAACDskuU9XLoVU99Z1EpFDP+eXvpQzE0b7DzpChcleAIifAAAAEC2S/WZxFaGzPmhEorXeKqpt18hfACmN0MYS0v/0p2iceyS5T1cuhVT31nUSkUM/55e+lDMTRvsPOkKFyV4AiJ8AAAAGWhhY2thdGhvbjIwMjZAbXlza29sYWUuZnIBAgME-----END OPENSSH PRIVATE KEY-----"

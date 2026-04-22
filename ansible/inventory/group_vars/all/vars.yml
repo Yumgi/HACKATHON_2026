@@ -5,32 +5,32 @@ domain: acme.local
 domain_dc: "dc=acme,dc=local"
 
 # ── Domaines publics / privés (Traefik TLS) ───────────────────────────────────
-domain_ext: "grp1.hackathon-ESGI-2026.tech"   # Let's Encrypt HTTP-01 (public)
-domain_lan: "grp1.hackathon-ESGI-2026.lan"    # self-signed (réseau interne)
+domain_ext: "grp1.hackathon-ESGI-2026.tech"
+domain_lan: "grp1.hackathon-ESGI-2026.lan"
 
 # ── Réseau ────────────────────────────────────────────────────────────────────
-network_lan:     "10.10.0.0/24"   # VLAN 10 — postes utilisateurs (pfSense LAN)
-network_servers: "10.20.0.0/24"   # VLAN 20 — containers SERVERS  (vmbr2)
-network_dmz:     "10.30.0.0/24"   # VLAN 30 — containers DMZ      (vmbr3)
+network_lan:     "10.10.0.0/24"
+network_servers: "10.20.0.0/24"
+network_dmz:     "10.30.0.0/24"
 
 gateway_lan:     "10.10.0.1"
 gateway_servers: "10.20.0.1"
 gateway_dmz:     "10.30.0.1"
 
-# ── IPs des services (alignées sur terraform) ─────────────────────────────────
-freeipa_ip:    "10.20.0.10"   # CT 101 — Rocky Linux 9
-postgresql_ip: "10.20.0.20"   # CT 102 — Debian 12
-prometheus_ip: "10.20.0.40"   # CT 104 — Debian 12
-grafana_ip:    "10.20.0.41"   # CT 105 — Ubuntu 22.04
-loki_ip:       "10.20.0.42"   # CT 106 — Debian 12
-bareos_ip:     "10.20.0.50"   # CT 107 — Ubuntu 22.04
-traefik_ip:    "10.30.0.10"   # CT 201 — Debian 12
+# ── IPs des services ──────────────────────────────────────────────────────────
+freeipa_ip:    "10.20.0.10"
+postgresql_ip: "10.20.0.20"
+prometheus_ip: "10.20.0.40"
+grafana_ip:    "10.20.0.41"
+loki_ip:       "10.20.0.42"
+bareos_ip:     "10.20.0.50"
+traefik_ip:    "10.30.0.10"
 
-# ── FreeIPA (Rocky Linux 9) ───────────────────────────────────────────────────
+# ── FreeIPA ───────────────────────────────────────────────────────────────────
 freeipa_realm:        "ACME.LOCAL"
 freeipa_domain:       "acme.local"
-freeipa_server_fqdn:  "ipa.acme.local"     # FQDN interne IPA (ne pas changer)
-freeipa_public_fqdn:  "ipa.{{ domain_ext }}"   # Route Traefik publique
+freeipa_server_fqdn:  "ipa.acme.local"
+freeipa_public_fqdn:  "ipa.{{ domain_ext }}"
 freeipa_admin_user:   "admin"
 freeipa_admin_password: "{{ vault_freeipa_admin_password }}"
 freeipa_ds_password:    "{{ vault_freeipa_ds_password }}"
@@ -68,10 +68,8 @@ loki_port: 3100
 bareos_webui_password: "{{ vault_bareos_webui_password }}"
 
 # ── Traefik / TLS ─────────────────────────────────────────────────────────────
-# Email réel requis pour Let's Encrypt (ACME)
 certbot_email: "admin@grp1.hackathon-ESGI-2026.tech"
 
-# Domaines publics — Let's Encrypt HTTP-01 (port 80 doit être joignable depuis WAN)
 certbot_domains:
   - "grafana.grp1.hackathon-ESGI-2026.tech"
   - "prometheus.grp1.hackathon-ESGI-2026.tech"
@@ -81,6 +79,5 @@ certbot_domains:
   - "ipa.grp1.hackathon-ESGI-2026.tech"
   - "pfsense.grp1.hackathon-ESGI-2026.tech"
 
-# Basic-auth Traefik dashboard (généré par le template htpasswd.j2)
 traefik_dashboard_user: "admin"
 traefik_dashboard_password: "{{ vault_traefik_dashboard_password }}"
