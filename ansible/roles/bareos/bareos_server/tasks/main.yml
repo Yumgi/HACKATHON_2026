@@ -1,28 +1,122 @@
 ---
-- name: Install Bareos server packages
-  ansible.builtin.package:
+# Bareos Director + Storage + WebUI sur Ubuntu 22.04 LXC
+
+# ── Repo Bareos Ubuntu 22.04 ──────────────────────────────────────────────────
+
+- name: Installer les prérequis
+  apt:
+    name:
+      - curl
+      - apt-transport-https
+      - gnupg
+      - postgresql
+      - python3-psycopg2
+    state: present
+    update_cache: true
+  tags: install
+
+- name: Créer /etc/apt/keyrings
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  tags: install
+
+- name: Télécharger la clé GPG Bareos
+  get_url:
+    url: "https://download.bareos.org/current/xUbuntu_22.04/Release.key"
+    dest: /etc/apt/keyrings/bareos.asc
+    mode: "0644"
+  tags: install
+
+- name: Ajouter le dépôt Bareos xUbuntu_22.04
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/bareos.asc] https://download.bareos.org/current/xUbuntu_22.04/ /"
+    state: present
+    filename: bareos
+  tags: install
+
+- name: Installer les packages Bareos server
+  apt:
     name:
       - bareos
       - bareos-database-postgresql
+      - bareos-webui
     state: present
+    update_cache: true
+  tags: install
 
-- name: Ensure Bareos config directories exist
-  ansible.builtin.file:
+# ── Catalogue PostgreSQL ───────────────────────────────────────────────────────
+
+- name: Démarrer PostgreSQL
+  systemd:
+    name: postgresql
+    state: started
+    enabled: true
+  tags: configure
+
+- name: Vérifier si le catalogue Bareos existe déjà
+  become_user: postgres
+  command: psql -tAc "SELECT 1 FROM pg_database WHERE datname='bareos'"
+  register: bareos_db_exists
+  changed_when: false
+  tags: configure
+
+- name: Créer le catalogue Bareos (première installation)
+  become_user: postgres
+  shell: |
+    /usr/lib/bareos/scripts/create_bareos_database &&
+    /usr/lib/bareos/scripts/make_bareos_tables &&
+    /usr/lib/bareos/scripts/grant_bareos_privileges
+  when: bareos_db_exists.stdout != "1"
+  tags: configure
+
+# ── Config répertoires ────────────────────────────────────────────────────────
+
+- name: Créer les répertoires de config Bareos
+  file:
     path: "{{ item }}"
     state: directory
     owner: root
     group: bareos
-    mode: "0755"
+    mode: "0750"
   loop:
     - "{{ bareos_dir_conf_path }}/client"
     - "{{ bareos_dir_conf_path }}/fileset"
     - "{{ bareos_dir_conf_path }}/job"
     - "{{ bareos_dir_conf_path }}/schedule"
     - "{{ bareos_dir_conf_path }}/pool"
+    - /var/lib/bareos/storage
     - "{{ bareos_manual_scripts_path }}"
+  tags: configure
 
-- name: Deploy Bareos Client resources
-  ansible.builtin.template:
+# ── Storage daemon ─────────────────────────────────────────────────────────────
+
+- name: Déployer la config Storage daemon
+  copy:
+    dest: /etc/bareos/bareos-sd.d/device/FileStorage.conf
+    owner: root
+    group: bareos
+    mode: "0640"
+    content: |
+      Device {
+        Name = FileStorage
+        Media Type = File
+        Archive Device = /var/lib/bareos/storage
+        LabelMedia = yes
+        Random Access = yes
+        AutomaticMount = yes
+        RemovableMedia = no
+        AlwaysOpen = no
+        Description = "File device — stockage local Bareos"
+      }
+  notify: Restart bareos sd
+  tags: configure
+
+# ── Director — ressources dynamiques ──────────────────────────────────────────
+
+- name: Déployer les ressources Client
+  template:
     src: client.conf.j2
     dest: "{{ bareos_dir_conf_path }}/client/{{ item.name }}.conf"
     owner: root
@@ -30,9 +124,10 @@
     mode: "0640"
   loop: "{{ bareos_clients }}"
   notify: Restart bareos dir
+  tags: configure
 
-- name: Deploy Bareos FileSet resources
-  ansible.builtin.template:
+- name: Déployer les ressources FileSet
+  template:
     src: fileset.conf.j2
     dest: "{{ bareos_dir_conf_path }}/fileset/{{ item.name }}-fileset.conf"
     owner: root
@@ -40,9 +135,10 @@
     mode: "0640"
   loop: "{{ bareos_clients }}"
   notify: Restart bareos dir
+  tags: configure
 
-- name: Deploy Bareos Job resources
-  ansible.builtin.template:
+- name: Déployer les ressources Job
+  template:
     src: job.conf.j2
     dest: "{{ bareos_dir_conf_path }}/job/{{ item.name }}-backup.conf"
     owner: root
@@ -50,51 +146,65 @@
     mode: "0640"
   loop: "{{ bareos_clients }}"
   notify: Restart bareos dir
+  tags: configure
 
-- name: Deploy Bareos Schedule resource
-  ansible.builtin.template:
+- name: Déployer le Schedule
+  template:
     src: schedule.conf.j2
     dest: "{{ bareos_dir_conf_path }}/schedule/{{ bareos_schedule_name }}.conf"
     owner: root
     group: bareos
     mode: "0640"
   notify: Restart bareos dir
+  tags: configure
 
-- name: Deploy Bareos Pool resources
-  ansible.builtin.template:
+- name: Déployer les Pools
+  template:
     src: pools.conf.j2
     dest: "{{ bareos_dir_conf_path }}/pool/backup-pools.conf"
     owner: root
     group: bareos
     mode: "0640"
   notify: Restart bareos dir
+  tags: configure
 
-- name: Deploy manual backup trigger script
-  ansible.builtin.template:
+- name: Déployer le script de backup manuel
+  template:
     src: run_backup.sh.j2
     dest: "{{ bareos_manual_scripts_path }}/run_bareos_backup.sh"
     owner: root
     group: root
     mode: "0750"
+  tags: configure
 
-- name: Deploy restore proof script
-  ansible.builtin.template:
+- name: Déployer le script restore-proof
+  template:
     src: restore_proof.sh.j2
     dest: "{{ bareos_manual_scripts_path }}/restore_proof.sh"
     owner: root
     group: root
     mode: "0750"
+  tags: configure
 
-- name: Ensure bareos services are enabled and started
-  ansible.builtin.service:
+# ── Démarrage ─────────────────────────────────────────────────────────────────
+
+- name: Appliquer les handlers
+  meta: flush_handlers
+  tags: configure
+
+- name: Démarrer les services Bareos
+  systemd:
     name: "{{ item }}"
     state: started
     enabled: true
+    daemon_reload: true
   loop:
     - bareos-director
     - bareos-storage
     - bareos-filedaemon
+  tags: configure
 
-- name: Validate Bareos director configuration
-  ansible.builtin.command: bareos-dir -t
+- name: Valider la configuration du Director
+  command: bareos-dir -t
   changed_when: false
+  tags: configure

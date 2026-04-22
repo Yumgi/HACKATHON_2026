@@ -1,16 +1,25 @@
 ---
-- name: Deploy Bareos Server
+- name: Bareos — File Daemons sur les clients
+  hosts: bareos_clients
+  become: true
+  vars:
+    bareos_fd_password: "{{ vault_bareos_fd_password }}"
+    bareos_fd_conf_path: /etc/bareos/bareos-fd.d
+    bareos_director_name: bareos-dir
+  roles:
+    - role: bareos_client
+      tags: [bareos, client]
+
+- name: Bareos — Serveur (Director + Storage) sur Ubuntu 22.04 LXC
   hosts: bareos_servers
   become: true
   vars:
     bareos_fd_password: "{{ vault_bareos_fd_password }}"
     bareos_dir_conf_path: /etc/bareos/bareos-dir.d
     bareos_manual_scripts_path: /usr/local/bin
-
     bareos_schedule_name: WeeklyCycle
     bareos_full_pool_name: FullPool
     bareos_inc_pool_name: IncPool
-
     bareos_clients:
       - name: postgres-fd
         address: 10.20.0.20
@@ -19,21 +28,19 @@
           - /var/backups/postgresql
           - /opt/restore-proof
       - name: freeipa-fd
-        address: 10.20.0.10 
+        address: 10.20.0.10
         password: "{{ vault_bareos_fd_password }}"
         backup_paths:
           - /etc/ipa
           - /var/lib/ipa
           - /opt/restore-proof
   roles:
-    - bareos_server
+    - role: bareos_server
+      tags: [bareos, server]
 
-- name: Deploy Bareos Clients
-  hosts: bareos_clients
-  become: true
-  vars:
-    bareos_fd_password: "{{ vault_bareos_fd_password }}"
-    bareos_fd_conf_path: /etc/bareos/bareos-fd.d
-    bareos_director_name: bareos-dir
-  roles:
-    - bareos_client
+  post_tasks:
+    - name: Vérifier que le Director répond
+      command: bconsole -c /etc/bareos/bconsole.conf <<< "version"
+      changed_when: false
+      failed_when: false
+      tags: verify
