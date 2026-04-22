@@ -35,12 +35,7 @@ resource "proxmox_lxc" "bareos" {
     keyctl  = false
   }
 
-  initialization {
-    hostname = "bareos.${var.domain}"
-    dns {
-      server = "10.20.0.10"
-    }
-  }
+  nameserver = "10.20.0.10"
 
   depends_on = [proxmox_lxc.postgresql]
 }

@@ -34,10 +34,5 @@ resource "proxmox_lxc" "loki" {
     keyctl  = false
   }
 
-  initialization {
-    hostname = "loki.${var.domain}"
-    dns {
-      server = "10.20.0.10"
-    }
-  }
+  nameserver = "10.20.0.10"
 }

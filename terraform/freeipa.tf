@@ -36,10 +36,5 @@ resource "proxmox_lxc" "freeipa" {
     keyctl  = false
   }
 
-  initialization {
-    hostname = "ipa.${var.domain}"
-    dns {
-      server = "1.1.1.1"   # bootstrap : FreeIPA n'est pas encore DNS
-    }
-  }
+  nameserver = "10.20.0.10"
 }
