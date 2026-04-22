@@ -1,46 +1,48 @@
 ---
-# Distribue le root CA de Step-CA sur tous les containers du parc.
-# À lancer après le playbook traefik (le root CA doit déjà exister).
+# Distribue le CA interne ACME Corp sur tous les serveurs du parc.
+# À lancer après le playbook traefik (le CA doit déjà exister sur Traefik).
 #
 # Usage : ansible-playbook playbooks/distribute_ca.yml
-#
-# Après ce playbook, l'admin doit aussi importer /tmp/step-ca-root.crt
-# dans les navigateurs / magasins de certs des postes clients.
 
-- name: Récupérer le root CA depuis Traefik
+- name: Récupérer le CA depuis Traefik
   hosts: proxy
   become: true
   tasks:
-    - name: Slurp du root CA Step-CA
+    - name: Slurp du CA interne
       slurp:
-        src: /opt/traefik/step-ca/certs/root_ca.crt
-      register: stepca_root_ca
+        src: /opt/traefik/certs/ca.crt
+      register: acme_root_ca
 
-    - name: Sauvegarder le root CA localement (pour import navigateurs)
+    - name: Sauvegarder le CA localement
       copy:
-        content: "{{ stepca_root_ca.content | b64decode }}"
-        dest: "{{ playbook_dir }}/../step-ca-root.crt"
+        content: "{{ acme_root_ca.content | b64decode }}"
+        dest: "{{ playbook_dir }}/../../acme-corp-ca.crt"
       delegate_to: localhost
       become: false
 
-- name: Installer le root CA sur tous les containers
-  hosts: all
+- name: Installer le CA sur tous les serveurs
+  hosts: servers
   become: true
   vars:
-    ca_content: "{{ hostvars[groups['proxy'][0]]['stepca_root_ca']['content'] | b64decode }}"
+    ca_content: "{{ hostvars[groups['proxy'][0]]['acme_root_ca']['content'] | b64decode }}"
   tasks:
-    - name: Copier le root CA dans le store système
+    - name: Copier le CA dans le store système
       copy:
         content: "{{ ca_content }}"
-        dest: /usr/local/share/ca-certificates/step-ca-internal.crt
+        dest: /usr/local/share/ca-certificates/acme-corp-ca.crt
         mode: "0644"
+      register: ca_copy
 
     - name: Mettre à jour le store de CAs (Debian/Ubuntu)
       command: update-ca-certificates
-      when: ansible_os_family == "Debian"
+      when:
+        - ca_copy.changed
+        - ansible_os_family == "Debian"
       changed_when: true
 
     - name: Mettre à jour le store de CAs (RedHat/Rocky)
       command: update-ca-trust extract
-      when: ansible_os_family == "RedHat"
+      when:
+        - ca_copy.changed
+        - ansible_os_family == "RedHat"
       changed_when: true

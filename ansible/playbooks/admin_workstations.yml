@@ -1,0 +1,82 @@
+---
+# Configuration des postes d'administration ACME Corp
+# - Importe le CA interne pour que les navigateurs fassent confiance aux certificats
+# - Ajoute les entrées /etc/hosts pour résoudre les domaines via Traefik
+#
+# Prérequis : le playbook traefik doit avoir été exécuté au préalable
+#             (le fichier acme-corp-ca.crt doit exister à la racine du repo)
+#
+# Usage : ansible-playbook playbooks/admin_workstations.yml
+
+- name: Configurer les postes d'administration
+  hosts: admin_workstations
+  become: true
+
+  vars:
+    traefik_ip: "10.30.0.10"
+    ca_local_path: "{{ playbook_dir }}/../../acme-corp-ca.crt"
+    service_domains:
+      - grafana.grp1.hackathon-ESGI-2026.tech
+      - prometheus.grp1.hackathon-ESGI-2026.tech
+      - loki.grp1.hackathon-ESGI-2026.tech
+      - bareos.grp1.hackathon-ESGI-2026.tech
+      - ipa.grp1.hackathon-ESGI-2026.tech
+      - traefik.grp1.hackathon-ESGI-2026.tech
+      - pfsense.grp1.hackathon-ESGI-2026.tech
+      - intranet.grp1.hackathon-ESGI-2026.lan
+
+  tasks:
+    # ── CA interne ────────────────────────────────────────────────────────────
+
+    - name: Vérifier que le fichier CA existe localement
+      stat:
+        path: "{{ ca_local_path }}"
+      register: ca_stat
+      delegate_to: localhost
+      become: false
+
+    - name: Slurp du CA depuis Traefik si absent localement
+      slurp:
+        src: /opt/traefik/certs/ca.crt
+      register: ca_slurp
+      delegate_to: "{{ groups['proxy'][0] }}"
+      when: not ca_stat.stat.exists
+
+    - name: Sauvegarder le CA localement
+      copy:
+        content: "{{ ca_slurp.content | b64decode }}"
+        dest: "{{ ca_local_path }}"
+      delegate_to: localhost
+      become: false
+      when: not ca_stat.stat.exists
+
+    - name: Copier le CA interne dans le store système
+      copy:
+        src: "{{ ca_local_path }}"
+        dest: /usr/local/share/ca-certificates/acme-corp-ca.crt
+        mode: "0644"
+      register: ca_copy
+
+    - name: Mettre à jour le store de CAs (Debian/Ubuntu)
+      command: update-ca-certificates
+      when:
+        - ca_copy.changed
+        - ansible_os_family == "Debian"
+      changed_when: true
+
+    - name: Mettre à jour le store de CAs (RedHat/Rocky)
+      command: update-ca-trust extract
+      when:
+        - ca_copy.changed
+        - ansible_os_family == "RedHat"
+      changed_when: true
+
+    # ── Résolution DNS via /etc/hosts → Traefik ───────────────────────────────
+
+    - name: Ajouter les entrées /etc/hosts pour les services ACME
+      lineinfile:
+        path: /etc/hosts
+        regexp: "^[0-9.]+\\s+{{ item }}$"
+        line: "{{ traefik_ip }}  {{ item }}"
+        state: present
+      loop: "{{ service_domains }}"
