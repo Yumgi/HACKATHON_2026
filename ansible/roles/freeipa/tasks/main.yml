@@ -14,20 +14,25 @@
   dnf:
     name:
       - dnf-plugins-core
-      - python3-libsemanage   # SELinux bindings Python
+      - python3-libsemanage
       - python3-policycoreutils
       - chrony
+      - firewalld
     state: present
   tags: install
 
-- name: Activer le dépôt CRB (requis pour certaines dépendances IPA)
+# Sur RHEL9 sans subscription, crb n'existe pas — on tente mais sans bloquer.
+# Sur Rocky/Alma Linux 9, cette commande réussira normalement.
+- name: Activer le dépôt CRB si disponible (ignoré sur RHEL9 sans subscription)
   command: dnf config-manager --set-enabled crb
   changed_when: false
+  failed_when: false
   tags: install
 
 - name: Rafraîchir le cache DNF
   command: dnf makecache
   changed_when: false
+  failed_when: false
   tags: install
 
 # ── 2. SELinux — permissive pour le hackathon ──────────────────────────────────
