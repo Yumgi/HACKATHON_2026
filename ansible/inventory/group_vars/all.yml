@@ -4,6 +4,10 @@
 domain: acme.local
 domain_dc: "dc=acme,dc=local"
 
+# ── Domaines publics / privés (Traefik TLS) ───────────────────────────────────
+domain_ext: "grp1.hackathon-ESGI-2026.tech"   # Let's Encrypt HTTP-01 (public)
+domain_lan: "grp1.hackathon-ESGI-2026.lan"    # self-signed (réseau interne)
+
 # ── Réseau ────────────────────────────────────────────────────────────────────
 network_lan:     "10.10.0.0/24"   # VLAN 10 — postes utilisateurs (pfSense LAN)
 network_servers: "10.20.0.0/24"   # VLAN 20 — containers SERVERS  (vmbr2)
@@ -25,7 +29,8 @@ traefik_ip:    "10.30.0.10"   # CT 201 — Debian 12
 # ── FreeIPA (Rocky Linux 9) ───────────────────────────────────────────────────
 freeipa_realm:        "ACME.LOCAL"
 freeipa_domain:       "acme.local"
-freeipa_server_fqdn:  "ipa.acme.local"
+freeipa_server_fqdn:  "ipa.acme.local"     # FQDN interne IPA (ne pas changer)
+freeipa_public_fqdn:  "ipa.{{ domain_ext }}"   # Route Traefik publique
 freeipa_admin_user:   "admin"
 freeipa_admin_password: "{{ vault_freeipa_admin_password }}"
 freeipa_ds_password:    "{{ vault_freeipa_ds_password }}"
@@ -54,7 +59,7 @@ postgresql_app_password: "{{ vault_postgresql_app_password }}"
 
 # ── Grafana ───────────────────────────────────────────────────────────────────
 grafana_admin_password: "{{ vault_grafana_admin_password }}"
-grafana_domain:         "grafana.acme.local"
+grafana_domain:         "grafana.{{ domain_ext }}"
 
 # ── Loki ──────────────────────────────────────────────────────────────────────
 loki_port: 3100
@@ -63,8 +68,19 @@ loki_port: 3100
 bareos_webui_password: "{{ vault_bareos_webui_password }}"
 
 # ── Traefik / TLS ─────────────────────────────────────────────────────────────
-certbot_email: "admin@acme.local"
+# Email réel requis pour Let's Encrypt (ACME)
+certbot_email: "admin@grp1.hackathon-ESGI-2026.tech"
+
+# Domaines publics — Let's Encrypt HTTP-01 (port 80 doit être joignable depuis WAN)
 certbot_domains:
-  - "grafana.acme.local"
-  - "traefik.acme.local"
-  - "ipa.acme.local"
+  - "grafana.grp1.hackathon-ESGI-2026.tech"
+  - "prometheus.grp1.hackathon-ESGI-2026.tech"
+  - "traefik.grp1.hackathon-ESGI-2026.tech"
+  - "loki.grp1.hackathon-ESGI-2026.tech"
+  - "bareos.grp1.hackathon-ESGI-2026.tech"
+  - "ipa.grp1.hackathon-ESGI-2026.tech"
+  - "pfsense.grp1.hackathon-ESGI-2026.tech"
+
+# Basic-auth Traefik dashboard (généré par le template htpasswd.j2)
+traefik_dashboard_user: "admin"
+traefik_dashboard_password: "{{ vault_traefik_dashboard_password }}"

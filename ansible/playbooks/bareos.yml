@@ -3,7 +3,7 @@
   hosts: bareos_servers
   become: true
   vars:
-    bareos_fd_password: "admin1234*"
+    bareos_fd_password: "{{ vault_bareos_fd_password }}"
     bareos_dir_conf_path: /etc/bareos/bareos-dir.d
     bareos_manual_scripts_path: /usr/local/bin
 
@@ -14,13 +14,13 @@
     bareos_clients:
       - name: postgres-fd
         address: 10.20.0.20
-        password: "admin1234*"
+        password: "{{ vault_bareos_fd_password }}"
         backup_paths:
           - /var/backups/postgresql
           - /opt/restore-proof
       - name: freeipa-fd
         address: 10.20.0.10 
-        password: "admin1234*"
+        password: "{{ vault_bareos_fd_password }}"
         backup_paths:
           - /etc/ipa
           - /var/lib/ipa
@@ -32,7 +32,7 @@
   hosts: bareos_clients
   become: true
   vars:
-    bareos_fd_password: "admin1234*"
+    bareos_fd_password: "{{ vault_bareos_fd_password }}"
     bareos_fd_conf_path: /etc/bareos/bareos-fd.d
     bareos_director_name: bareos-dir
   roles:

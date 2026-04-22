@@ -1,0 +1,44 @@
+---
+# Enregistrements DNS pour tous les services exposés via Traefik (10.30.0.10)
+# Split-horizon : ces noms résolvent en interne vers Traefik même pour le .tech
+# Les clients importent le root CA Step-CA une seule fois => pas d'avertissement
+
+- name: Créer la zone DNS interne pour {{ domain_ext }}
+  freeipa.ansible_freeipa.ipadnszone:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    name: "{{ domain_ext }}"
+    state: present
+    allow_sync_ptr: false
+
+- name: Créer la zone DNS interne pour {{ domain_lan }}
+  freeipa.ansible_freeipa.ipadnszone:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    name: "{{ domain_lan }}"
+    state: present
+    allow_sync_ptr: false
+
+- name: Créer les enregistrements A pour les services .tech (→ Traefik)
+  freeipa.ansible_freeipa.ipadnsrecord:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    zone_name: "{{ domain_ext }}"
+    name: "{{ item }}"
+    record_type: A
+    record_value: "{{ traefik_ip }}"
+    state: present
+  loop:
+    - grafana
+    - prometheus
+    - loki
+    - bareos
+    - ipa
+    - pfsense
+    - traefik
+
+- name: Créer l'enregistrement A pour intranet.{{ domain_lan }}
+  freeipa.ansible_freeipa.ipadnsrecord:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    zone_name: "{{ domain_lan }}"
+    name: intranet
+    record_type: A
+    record_value: "{{ traefik_ip }}"
+    state: present

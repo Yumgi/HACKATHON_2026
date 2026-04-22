@@ -3,7 +3,7 @@
   include_tasks: docker.yml
   tags: install
 
-- name: Créer les répertoires Traefik
+- name: Créer les répertoires Traefik et Step-CA
   file:
     path: "{{ item }}"
     state: directory
@@ -13,6 +13,7 @@
     - /opt/traefik/config
     - /opt/traefik/certs
     - /opt/traefik/logs
+    - /opt/traefik/step-ca
   tags: configure
 
 - name: Déployer traefik.yml (config statique)
@@ -38,7 +39,7 @@
     mode: "0640"
   tags: configure
 
-- name: Déployer docker-compose Traefik
+- name: Déployer docker-compose
   template:
     src: docker-compose.yml.j2
     dest: /opt/traefik/docker-compose.yml
@@ -46,7 +47,42 @@
   notify: restart traefik
   tags: configure
 
-- name: Démarrer Traefik
+# ── Step-CA : initialisation et démarrage ─────────────────────────────────────
+- name: Démarrer Step-CA (initialise le CA au premier boot)
+  community.docker.docker_compose_v2:
+    project_src: /opt/traefik
+    services: [step-ca]
+    state: present
+  tags: [configure, stepca]
+
+- name: Attendre que Step-CA génère le root CA (max 60s)
+  wait_for:
+    path: /opt/traefik/step-ca/certs/root_ca.crt
+    state: present
+    timeout: 60
+  tags: [configure, stepca]
+
+- name: Attendre que l'endpoint ACME de Step-CA réponde
+  uri:
+    url: "https://{{ traefik_ip }}:9000/acme/acme/directory"
+    validate_certs: false
+    status_code: 200
+  register: stepca_ready
+  retries: 12
+  delay: 5
+  until: stepca_ready.status == 200
+  tags: [configure, stepca]
+
+# ── Distribution du root CA aux containers ────────────────────────────────────
+- name: Récupérer le root CA de Step-CA
+  fetch:
+    src: /opt/traefik/step-ca/certs/root_ca.crt
+    dest: /tmp/step-ca-root.crt
+    flat: true
+  tags: [configure, stepca]
+
+# ── Démarrer Traefik (après Step-CA) ──────────────────────────────────────────
+- name: Démarrer la stack complète (Step-CA + Traefik)
   community.docker.docker_compose_v2:
     project_src: /opt/traefik
     state: present

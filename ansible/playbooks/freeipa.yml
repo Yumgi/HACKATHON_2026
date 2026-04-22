@@ -5,13 +5,6 @@
   vars_files:
     - ../inventory/group_vars/all.yml
 
-  pre_tasks:
-    - name: Mettre à jour le cache apt
-      apt:
-        update_cache: true
-        cache_valid_time: 3600
-      tags: install
-
   roles:
     - role: freeipa
       tags: [freeipa, identity]
@@ -25,3 +18,7 @@
       retries: 5
       delay: 10
       tags: verify
+
+    - name: Créer les zones DNS et enregistrements pour Traefik
+      include_tasks: ../roles/freeipa/tasks/dns_traefik.yml
+      tags: [dns, traefik]

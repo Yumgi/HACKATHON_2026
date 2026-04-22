@@ -10,16 +10,20 @@ entryPoints:
         entryPoint:
           to: websecure
           scheme: https
+          permanent: true
   websecure:
     address: ":443"
   traefik:
     address: ":8080"
 
 certificatesResolvers:
-  letsencrypt:
+  # CA ACME privé — Step-CA (réseau Docker interne traefik-net)
+  # Émet des certs pour tous les sous-domaines .tech et .lan
+  stepca:
     acme:
-      email: {{ certbot_email }}
-      storage: /certs/acme.json
+      email: "{{ certbot_email }}"
+      storage: /certs/acme-internal.json
+      caServer: "https://step-ca:9000/acme/acme/directory"
       httpChallenge:
         entryPoint: web
 
@@ -30,6 +34,10 @@ providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
+
+# insecureSkipVerify pour les backends HTTPS avec certs auto-signés (FreeIPA, pfSense)
+serversTransport:
+  insecureSkipVerify: true
 
 log:
   level: INFO
@@ -47,3 +55,4 @@ metrics:
   prometheus:
     addEntryPointsLabels: true
     addServicesLabels: true
+    entryPoint: traefik
