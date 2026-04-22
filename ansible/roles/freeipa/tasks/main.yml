@@ -21,18 +21,39 @@
     state: present
   tags: install
 
-# Sur RHEL9 sans subscription, crb n'existe pas — on tente mais sans bloquer.
-# Sur Rocky/Alma Linux 9, cette commande réussira normalement.
-- name: Activer le dépôt CRB si disponible (ignoré sur RHEL9 sans subscription)
-  command: dnf config-manager --set-enabled crb
-  changed_when: false
-  failed_when: false
+# RHEL9 sans subscription = aucun repo. On utilise Rocky Linux 9 (rebuild
+# binaire 1:1 de RHEL9) pour accéder à BaseOS, AppStream et CRB gratuitement.
+
+- name: Importer la clé GPG Rocky Linux 9
+  rpm_key:
+    key: "https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9"
+    state: present
   tags: install
 
-- name: Rafraîchir le cache DNF
+- name: Configurer les dépôts Rocky Linux 9
+  yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    baseurl: "{{ item.baseurl }}"
+    gpgcheck: true
+    gpgkey: "https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9"
+    enabled: true
+    state: present
+  loop:
+    - name: rocky-baseos
+      description: "Rocky Linux 9 - BaseOS"
+      baseurl: "https://dl.rockylinux.org/pub/rocky/9/BaseOS/x86_64/os/"
+    - name: rocky-appstream
+      description: "Rocky Linux 9 - AppStream"
+      baseurl: "https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/"
+    - name: rocky-crb
+      description: "Rocky Linux 9 - CRB"
+      baseurl: "https://dl.rockylinux.org/pub/rocky/9/CRB/x86_64/os/"
+  tags: install
+
+- name: Rafraîchir le cache DNF (tous les repos)
   command: dnf makecache
   changed_when: false
-  failed_when: false
   tags: install
 
 # ── 2. SELinux — permissive pour le hackathon ──────────────────────────────────
