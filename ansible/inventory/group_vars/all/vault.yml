@@ -1,6 +1,6 @@
 ---
-vault_freeipa_admin_password:  "root"
-vault_freeipa_ds_password:     "root"
+vault_freeipa_admin_password:  "Azerty1234*!"
+vault_freeipa_ds_password:     "Azerty1234*!"
 vault_postgresql_app_password: "Azerty1234*!"
 vault_grafana_admin_password:  "Azerty1234*!"
 vault_bareos_webui_password:   "Azerty1234*!"
