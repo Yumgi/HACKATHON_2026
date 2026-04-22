@@ -1,16 +1,25 @@
 ---
-- name: Ajouter le dépôt Grafana
-  block:
-    - name: Clé GPG Grafana
-      apt_key:
-        url: https://apt.grafana.com/gpg.key
-        state: present
+# ── Dépôt Grafana (méthode moderne — apt_key déprécié sur Ubuntu 22+) ─────────
 
-    - name: Dépôt Grafana
-      apt_repository:
-        repo: "deb https://apt.grafana.com stable main"
-        state: present
-        filename: grafana
+- name: Créer /etc/apt/keyrings
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  tags: install
+
+- name: Télécharger la clé GPG Grafana
+  get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: "0644"
+  tags: install
+
+- name: Ajouter le dépôt Grafana
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
   tags: install
 
 - name: Installer Grafana
@@ -19,6 +28,8 @@
     state: present
     update_cache: true
   tags: install
+
+# ── Configuration ──────────────────────────────────────────────────────────────
 
 - name: Configurer grafana.ini
   template:
@@ -32,22 +43,21 @@
 
 - name: Déployer les datasources (Prometheus + Loki)
   template:
-    src: "datasources.yml.j2"
-    dest: "/etc/grafana/provisioning/datasources/acme.yml"
+    src: datasources.yml.j2
+    dest: /etc/grafana/provisioning/datasources/acme.yml
     mode: "0640"
     owner: root
     group: grafana
   notify: restart grafana
   tags: configure
 
-- name: Déployer les dashboards provisionnés
-  copy:
-    src: "{{ playbook_dir }}/../monitoring/grafana/dashboards/"
-    dest: /var/lib/grafana/dashboards/
+- name: Créer le répertoire des dashboards
+  file:
+    path: /var/lib/grafana/dashboards
+    state: directory
     owner: grafana
     group: grafana
-    mode: "0644"
-  notify: restart grafana
+    mode: "0755"
   tags: configure
 
 - name: Config provider de dashboards
@@ -60,9 +70,26 @@
   notify: restart grafana
   tags: configure
 
+# ── Démarrage ─────────────────────────────────────────────────────────────────
+
+- name: Appliquer les handlers en attente
+  meta: flush_handlers
+  tags: configure
+
 - name: Démarrer Grafana
   systemd:
     name: grafana-server
     state: started
     enabled: true
+    daemon_reload: true
+  tags: configure
+
+- name: Attendre que Grafana soit prêt
+  uri:
+    url: "http://localhost:3000/api/health"
+    status_code: 200
+  retries: 15
+  delay: 5
+  register: grafana_health
+  until: grafana_health.status == 200
   tags: configure

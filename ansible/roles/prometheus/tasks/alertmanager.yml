@@ -1,0 +1,84 @@
+---
+- name: Créer l'utilisateur alertmanager
+  user:
+    name: alertmanager
+    system: true
+    shell: /bin/false
+    create_home: false
+
+- name: Télécharger et installer Alertmanager
+  unarchive:
+    src: "https://github.com/prometheus/alertmanager/releases/download/v{{ alertmanager_version }}/alertmanager-{{ alertmanager_version }}.linux-amd64.tar.gz"
+    dest: /usr/local/bin/
+    remote_src: true
+    extra_opts: ["--strip-components=1", "--wildcards", "*/alertmanager", "*/amtool"]
+    owner: alertmanager
+    group: alertmanager
+    mode: "0755"
+  args:
+    creates: /usr/local/bin/alertmanager
+
+- name: Créer les répertoires Alertmanager
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: alertmanager
+    group: alertmanager
+    mode: "0755"
+  loop:
+    - /etc/alertmanager
+    - /var/lib/alertmanager
+
+- name: Déployer alertmanager.yml
+  copy:
+    dest: /etc/alertmanager/alertmanager.yml
+    owner: alertmanager
+    group: alertmanager
+    mode: "0644"
+    content: |
+      global:
+        resolve_timeout: 5m
+
+      route:
+        group_by: [alertname, cluster]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 12h
+        receiver: null
+
+      receivers:
+        - name: null
+  notify: restart alertmanager
+
+- name: Déployer le service systemd Alertmanager
+  copy:
+    dest: /etc/systemd/system/alertmanager.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Alertmanager
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=alertmanager
+      Group=alertmanager
+      ExecStart=/usr/local/bin/alertmanager \
+        --config.file=/etc/alertmanager/alertmanager.yml \
+        --storage.path=/var/lib/alertmanager \
+        --web.listen-address=0.0.0.0:9093
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  notify:
+    - reload systemd
+    - restart alertmanager
+
+- name: Démarrer Alertmanager
+  systemd:
+    name: alertmanager
+    state: started
+    enabled: true
+    daemon_reload: true

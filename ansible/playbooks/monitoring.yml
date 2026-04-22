@@ -1,5 +1,5 @@
 ---
-- name: Prometheus — Métriques et alertes
+- name: Prometheus — Métriques et alertes (Debian 12 LXC)
   hosts: prometheus
   become: true
 
@@ -8,13 +8,15 @@
       tags: [prometheus, monitoring]
 
   post_tasks:
-    - name: Vérifier Prometheus
+    - name: Vérifier Prometheus healthy
       uri:
-        url: "http://{{ prometheus_ip }}:9090/-/healthy"
+        url: "http://localhost:9090/-/healthy"
         status_code: 200
+      retries: 10
+      delay: 3
       tags: verify
 
-- name: Grafana — Dashboards
+- name: Grafana — Dashboards (Ubuntu 22.04 LXC)
   hosts: grafana
   become: true
 
@@ -23,8 +25,10 @@
       tags: [grafana, monitoring]
 
   post_tasks:
-    - name: Vérifier Grafana
+    - name: Vérifier Grafana API health
       uri:
-        url: "http://{{ grafana_ip }}:3000/api/health"
+        url: "http://localhost:3000/api/health"
         status_code: 200
+      retries: 15
+      delay: 5
       tags: verify

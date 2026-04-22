@@ -45,7 +45,7 @@
 
 - name: Déployer les règles d'alerte
   copy:
-    src: "{{ playbook_dir }}/../monitoring/prometheus/alerts/rules.yml"
+    src: rules.yml
     dest: /etc/prometheus/rules/rules.yml
     owner: prometheus
     group: prometheus
@@ -63,12 +63,26 @@
     - restart prometheus
   tags: configure
 
+- name: Appliquer les handlers en attente
+  meta: flush_handlers
+  tags: configure
+
 - name: Démarrer Prometheus
   systemd:
     name: prometheus
     state: started
     enabled: true
     daemon_reload: true
+  tags: configure
+
+- name: Attendre que Prometheus soit prêt
+  uri:
+    url: "http://localhost:9090/-/healthy"
+    status_code: 200
+  retries: 10
+  delay: 3
+  register: prom_health
+  until: prom_health.status == 200
   tags: configure
 
 - name: Installer Alertmanager
