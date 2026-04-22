@@ -3,10 +3,11 @@
 
 # ── 1. Prérequis système ───────────────────────────────────────────────────────
 
-- name: Mettre à jour tous les paquets
+# Pas de dnf update global : les repos Rocky Linux 9 entrent en conflit avec
+# certains paquets RHEL9 (redhat-release, openssl-fips-provider-so).
+# On se contente de mettre à jour le cache.
+- name: Mettre à jour le cache DNF
   dnf:
-    name: "*"
-    state: latest
     update_cache: true
   tags: install
 
@@ -102,6 +103,7 @@
       - python3-ipalib
       - python3-ipaclient
     state: present
+    allowerasing: true   # Résout les conflits RHEL9 vs Rocky Linux
   tags: install
 
 # ── 5. Hostname et /etc/hosts ──────────────────────────────────────────────────
