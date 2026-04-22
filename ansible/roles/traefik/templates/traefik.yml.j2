@@ -1,6 +1,6 @@
 api:
   dashboard: true
-  insecure: false
+  insecure: true   # Dashboard accessible sur :8080 sans auth (réseau interne)
 
 ping:
   entryPoint: traefik
@@ -24,7 +24,6 @@ providers:
     directory: /opt/traefik/config
     watch: true
 
-# Ignore les certs auto-signés des backends (FreeIPA, pfSense)
 serversTransport:
   insecureSkipVerify: true
 

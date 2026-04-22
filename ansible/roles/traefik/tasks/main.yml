@@ -170,10 +170,32 @@
   notify: restart traefik
   tags: configure
 
-- name: Démarrer et activer Traefik
+- name: Activer et redémarrer Traefik (applique la nouvelle config)
   systemd:
     name: traefik
-    state: started
+    state: restarted
     enabled: true
     daemon_reload: true
+  tags: [configure, restart]
+
+- name: Attendre que Traefik réponde sur :8080
+  uri:
+    url: "http://{{ traefik_ip }}:8080/ping"
+    status_code: 200
+  retries: 10
+  delay: 3
+  register: traefik_ping
+  until: traefik_ping.status == 200
+  tags: [configure, restart]
+
+- name: Vérifier que les routes sont chargées
+  uri:
+    url: "http://{{ traefik_ip }}:8080/api/http/routers"
+    status_code: 200
+  register: traefik_routers
+  tags: [configure, restart]
+
+- name: Afficher le nombre de routes actives
+  debug:
+    msg: "Traefik opérationnel — {{ (traefik_routers.json | length) }} router(s) chargé(s)"
   tags: [configure, restart]
