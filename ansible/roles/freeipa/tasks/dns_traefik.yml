@@ -1,30 +1,29 @@
 ---
-# Enregistrements DNS pour tous les services exposés via Traefik (10.30.0.10)
-# Split-horizon : ces noms résolvent en interne vers Traefik même pour le .tech
-# Les clients importent le root CA Step-CA une seule fois => pas d'avertissement
+# DNS split-horizon : tous les noms de services pointent vers Traefik (10.30.0.10)
+# en interne, que ce soit du .tech ou du .lan
 
-- name: Créer la zone DNS interne pour {{ domain_ext }}
-  freeipa.ansible_freeipa.ipadnszone:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: "{{ domain_ext }}"
-    state: present
-    allow_sync_ptr: false
+- name: Obtenir le ticket Kerberos admin
+  shell: echo "{{ freeipa_admin_password }}" | kinit admin
+  changed_when: false
+  no_log: true
 
-- name: Créer la zone DNS interne pour {{ domain_lan }}
-  freeipa.ansible_freeipa.ipadnszone:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: "{{ domain_lan }}"
-    state: present
-    allow_sync_ptr: false
+- name: Créer la zone DNS {{ domain_ext }}
+  shell: |
+    ipa dnszone-show {{ domain_ext }} 2>/dev/null || \
+    ipa dnszone-add {{ domain_ext }} --admin-email=admin@{{ freeipa_domain }}
+  changed_when: false
 
-- name: Créer les enregistrements A pour les services .tech (→ Traefik)
-  freeipa.ansible_freeipa.ipadnsrecord:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    zone_name: "{{ domain_ext }}"
-    name: "{{ item }}"
-    record_type: A
-    record_value: "{{ traefik_ip }}"
-    state: present
+- name: Créer la zone DNS {{ domain_lan }}
+  shell: |
+    ipa dnszone-show {{ domain_lan }} 2>/dev/null || \
+    ipa dnszone-add {{ domain_lan }} --admin-email=admin@{{ freeipa_domain }}
+  changed_when: false
+
+- name: Créer les enregistrements A pour les services .tech (→ Traefik {{ traefik_ip }})
+  shell: |
+    ipa dnsrecord-show {{ domain_ext }} {{ item }} 2>/dev/null || \
+    ipa dnsrecord-add {{ domain_ext }} {{ item }} --a-rec={{ traefik_ip }}
+  changed_when: false
   loop:
     - grafana
     - prometheus
@@ -35,10 +34,7 @@
     - traefik
 
 - name: Créer l'enregistrement A pour intranet.{{ domain_lan }}
-  freeipa.ansible_freeipa.ipadnsrecord:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    zone_name: "{{ domain_lan }}"
-    name: intranet
-    record_type: A
-    record_value: "{{ traefik_ip }}"
-    state: present
+  shell: |
+    ipa dnsrecord-show {{ domain_lan }} intranet 2>/dev/null || \
+    ipa dnsrecord-add {{ domain_lan }} intranet --a-rec={{ traefik_ip }}
+  changed_when: false

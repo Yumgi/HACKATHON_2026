@@ -1,37 +1,46 @@
 ---
-# freeipa.ansible_freeipa.ipagroup — collection officielle Red Hat
-# Les modules s'exécutent sur le serveur IPA lui-même via l'API locale
+# Authentification Kerberos admin avant toute commande ipa
+- name: Obtenir le ticket Kerberos admin
+  shell: echo "{{ freeipa_admin_password }}" | kinit admin
+  changed_when: false
+  no_log: true
+
+# ── Groupes ───────────────────────────────────────────────────────────────────
+# ipa group-show retourne 0 si le groupe existe, 2 sinon → idempotent
 
 - name: Créer le groupe acme-admins
-  freeipa.ansible_freeipa.ipagroup:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: acme-admins
-    description: "Administrateurs ACME Corp"
-    state: present
+  shell: ipa group-show acme-admins 2>/dev/null || ipa group-add acme-admins --desc="Administrateurs ACME Corp"
+  changed_when: false
+  register: result_admins
 
 - name: Créer le groupe acme-users
-  freeipa.ansible_freeipa.ipagroup:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: acme-users
-    description: "Utilisateurs standard ACME Corp"
-    state: present
+  shell: ipa group-show acme-users 2>/dev/null || ipa group-add acme-users --desc="Utilisateurs standard ACME Corp"
+  changed_when: false
 
 - name: Créer le groupe acme-readonly
-  freeipa.ansible_freeipa.ipagroup:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: acme-readonly
-    description: "Accès lecture seule ACME Corp"
-    state: present
+  shell: ipa group-show acme-readonly 2>/dev/null || ipa group-add acme-readonly --desc="Accès lecture seule ACME Corp"
+  changed_when: false
 
-- name: Appliquer les politiques de mot de passe par groupe
-  freeipa.ansible_freeipa.ipapwpolicy:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: "{{ item.group }}"
-    minlife: "{{ item.minlife }}"
-    maxlife: "{{ item.maxlife }}"
-    minlength: "{{ item.minlength }}"
-    history: "{{ item.history }}"
-    minclasses: "{{ item.minclasses }}"
-    priority: "{{ item.priority }}"
-    state: present
+# ── Politiques de mot de passe ────────────────────────────────────────────────
+
+- name: Appliquer les politiques de mot de passe
+  shell: |
+    if ipa pwpolicy-show {{ item.group }} 2>/dev/null; then
+      ipa pwpolicy-mod {{ item.group }} \
+        --minlife={{ item.minlife }} \
+        --maxlife={{ item.maxlife }} \
+        --minlength={{ item.minlength }} \
+        --history={{ item.history }} \
+        --minclasses={{ item.minclasses }} \
+        --priority={{ item.priority }}
+    else
+      ipa pwpolicy-add {{ item.group }} \
+        --minlife={{ item.minlife }} \
+        --maxlife={{ item.maxlife }} \
+        --minlength={{ item.minlength }} \
+        --history={{ item.history }} \
+        --minclasses={{ item.minclasses }} \
+        --priority={{ item.priority }}
+    fi
+  changed_when: false
   loop: "{{ ipa_password_policies }}"

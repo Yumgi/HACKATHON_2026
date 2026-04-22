@@ -1,42 +1,53 @@
 ---
-# freeipa.ansible_freeipa.ipauser — collection officielle Red Hat
+- name: Obtenir le ticket Kerberos admin
+  shell: echo "{{ freeipa_admin_password }}" | kinit admin
+  changed_when: false
+  no_log: true
+
+# ipa user-show retourne 0 si l'utilisateur existe → idempotent
+# --random génère un mot de passe temporaire si l'utilisateur est nouveau ;
+# on force le mot de passe voulu juste après avec ipa passwd.
 
 - name: Créer l'utilisateur alice (admin)
-  freeipa.ansible_freeipa.ipauser:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: alice
-    first: Alice
-    last: Admin
-    mail: alice@{{ freeipa_domain }}
-    password: "Admin1234!"
-    update_password: on_create
-    groups:
-      - acme-admins
-      - acme-users
-    state: present
+  shell: |
+    ipa user-show alice 2>/dev/null || \
+    ipa user-add alice \
+      --first=Alice --last=Admin \
+      --email=alice@{{ freeipa_domain }} \
+      --password <<< $'Admin1234!\nAdmin1234!'
+  changed_when: false
+  no_log: true
 
-- name: Créer l'utilisateur bob (utilisateur standard)
-  freeipa.ansible_freeipa.ipauser:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: bob
-    first: Bob
-    last: User
-    mail: bob@{{ freeipa_domain }}
-    password: "User1234!"
-    update_password: on_create
-    groups:
-      - acme-users
-    state: present
+- name: Ajouter alice dans acme-admins et acme-users
+  shell: |
+    ipa group-add-member acme-admins --users=alice 2>/dev/null || true
+    ipa group-add-member acme-users  --users=alice 2>/dev/null || true
+  changed_when: false
+
+- name: Créer l'utilisateur bob (standard)
+  shell: |
+    ipa user-show bob 2>/dev/null || \
+    ipa user-add bob \
+      --first=Bob --last=User \
+      --email=bob@{{ freeipa_domain }} \
+      --password <<< $'User1234!\nUser1234!'
+  changed_when: false
+  no_log: true
+
+- name: Ajouter bob dans acme-users
+  shell: ipa group-add-member acme-users --users=bob 2>/dev/null || true
+  changed_when: false
 
 - name: Créer l'utilisateur carol (lecture seule)
-  freeipa.ansible_freeipa.ipauser:
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    name: carol
-    first: Carol
-    last: Readonly
-    mail: carol@{{ freeipa_domain }}
-    password: "Read1234!"
-    update_password: on_create
-    groups:
-      - acme-readonly
-    state: present
+  shell: |
+    ipa user-show carol 2>/dev/null || \
+    ipa user-add carol \
+      --first=Carol --last=Readonly \
+      --email=carol@{{ freeipa_domain }} \
+      --password <<< $'Read1234!\nRead1234!'
+  changed_when: false
+  no_log: true
+
+- name: Ajouter carol dans acme-readonly
+  shell: ipa group-add-member acme-readonly --users=carol 2>/dev/null || true
+  changed_when: false

@@ -129,10 +129,29 @@
 
 # ── 6. Installation FreeIPA (idempotente) ─────────────────────────────────────
 
-- name: Vérifier si FreeIPA est déjà configuré
+# Vérifie si l'instance 389-DS (LDAP) existe — preuve qu'IPA a bien été installé
+# /etc/ipa/default.conf seul n'est pas suffisant (créé même si l'install échoue)
+- name: Vérifier si l'instance 389-DS est configurée
+  stat:
+    path: "/etc/dirsrv/slapd-{{ freeipa_realm | replace('.', '-') }}"
+  register: ipa_ds_instance
+  tags: install
+
+# Si /etc/ipa/default.conf existe mais pas l'instance DS → installation partielle
+# On nettoie pour repartir sur une base saine
+- name: Détecter une installation partielle (default.conf sans instance DS)
   stat:
     path: /etc/ipa/default.conf
-  register: ipa_installed
+  register: ipa_conf_file
+  tags: install
+
+- name: Nettoyer une installation partielle si nécessaire
+  command: ipa-server-install --uninstall --unattended
+  when:
+    - ipa_conf_file.stat.exists
+    - not ipa_ds_instance.stat.exists
+  failed_when: false
+  changed_when: true
   tags: install
 
 - name: Lancer ipa-server-install
@@ -149,24 +168,34 @@
     {% for fw in freeipa_dns_forwarders %}--forwarder={{ fw }} {% endfor %}
     --no-ntp
     --mkhomedir
-  when: not ipa_installed.stat.exists
+  when: not ipa_ds_instance.stat.exists
   register: ipa_install_result
   changed_when: ipa_install_result.rc == 0
   tags: install
 
-- name: Afficher la sortie de ipa-server-install (debug)
+- name: Afficher la sortie si ipa-server-install a échoué
   debug:
     msg: "{{ ipa_install_result.stdout_lines | default([]) + ipa_install_result.stderr_lines | default([]) }}"
-  when: ipa_install_result is defined and ipa_install_result.rc is defined and ipa_install_result.rc != 0
+  when:
+    - ipa_install_result is not skipped
+    - ipa_install_result.rc is defined
+    - ipa_install_result.rc != 0
   tags: install
 
 # ── 7. Service IPA ─────────────────────────────────────────────────────────────
 
-- name: Démarrer et activer le service IPA
+- name: Activer le service IPA au démarrage
   systemd:
     name: ipa
-    state: started
     enabled: true
+    daemon_reload: true
+  tags: configure
+
+- name: Démarrer le service IPA via ipactl (plus fiable que systemd direct)
+  command: ipactl start
+  register: ipactl_start
+  changed_when: "'already running' not in ipactl_start.stdout"
+  failed_when: ipactl_start.rc != 0 and 'already running' not in ipactl_start.stdout
   tags: configure
 
 - name: Attendre que l'API IPA réponde (max 120s)
