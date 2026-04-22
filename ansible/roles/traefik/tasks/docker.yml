@@ -13,8 +13,8 @@
       net.ipv4.conf.default.forwarding=1
     mode: "0644"
 
-- name: Appliquer les sysctls
-  command: sysctl --system
+- name: Appliquer uniquement nos sysctls (évite les erreurs LXC sur les fichiers système)
+  command: sysctl -p /etc/sysctl.d/99-docker-lxc.conf
   changed_when: false
 
 # ── Dépendances Docker ────────────────────────────────────────────────────────
