@@ -3,6 +3,12 @@
   include_tasks: docker.yml
   tags: install
 
+- name: Installer apache2-utils (htpasswd)
+  apt:
+    name: apache2-utils
+    state: present
+  tags: install
+
 - name: Créer les répertoires Traefik et Step-CA
   file:
     path: "{{ item }}"
@@ -32,11 +38,13 @@
   notify: restart traefik
   tags: configure
 
-- name: Déployer le fichier d'authentification basic auth
-  template:
-    src: htpasswd.j2
-    dest: /opt/traefik/config/.htpasswd
-    mode: "0640"
+- name: Générer le fichier htpasswd via commande
+  command: >
+    htpasswd -cbB /opt/traefik/config/.htpasswd
+    {{ traefik_dashboard_user }}
+    {{ traefik_dashboard_password }}
+  no_log: true
+  changed_when: true
   tags: configure
 
 - name: Déployer docker-compose
@@ -47,7 +55,7 @@
   notify: restart traefik
   tags: configure
 
-# ── Step-CA : initialisation et démarrage ─────────────────────────────────────
+# ── Step-CA ────────────────────────────────────────────────────────────────────
 - name: Démarrer Step-CA (initialise le CA au premier boot)
   community.docker.docker_compose_v2:
     project_src: /opt/traefik
@@ -55,11 +63,11 @@
     state: present
   tags: [configure, stepca]
 
-- name: Attendre que Step-CA génère le root CA (max 60s)
+- name: Attendre que Step-CA génère le root CA (max 90s)
   wait_for:
     path: /opt/traefik/step-ca/certs/root_ca.crt
     state: present
-    timeout: 60
+    timeout: 90
   tags: [configure, stepca]
 
 - name: Attendre que l'endpoint ACME de Step-CA réponde
@@ -68,20 +76,19 @@
     validate_certs: false
     status_code: 200
   register: stepca_ready
-  retries: 12
+  retries: 18
   delay: 5
   until: stepca_ready.status == 200
   tags: [configure, stepca]
 
-# ── Distribution du root CA aux containers ────────────────────────────────────
-- name: Récupérer le root CA de Step-CA
+- name: Récupérer le root CA Step-CA en local (pour import navigateurs)
   fetch:
     src: /opt/traefik/step-ca/certs/root_ca.crt
-    dest: /tmp/step-ca-root.crt
+    dest: "{{ playbook_dir }}/../../step-ca-root.crt"
     flat: true
   tags: [configure, stepca]
 
-# ── Démarrer Traefik (après Step-CA) ──────────────────────────────────────────
+# ── Traefik ────────────────────────────────────────────────────────────────────
 - name: Démarrer la stack complète (Step-CA + Traefik)
   community.docker.docker_compose_v2:
     project_src: /opt/traefik

@@ -1,11 +1,9 @@
 ---
-- name: Traefik — Reverse proxy HTTPS
+- name: Traefik — Reverse proxy HTTPS + Step-CA PKI privée
   hosts: proxy
   become: true
 
   roles:
-    - role: certbot
-      tags: [certbot, tls]
     - role: traefik
       tags: [traefik, proxy]
 
@@ -14,4 +12,6 @@
       uri:
         url: "http://{{ traefik_ip }}:8080/ping"
         status_code: 200
+      retries: 6
+      delay: 5
       tags: verify

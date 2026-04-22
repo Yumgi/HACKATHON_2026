@@ -2,6 +2,9 @@ api:
   dashboard: true
   insecure: false
 
+ping:
+  entryPoint: traefik
+
 entryPoints:
   web:
     address: ":80"
@@ -17,8 +20,6 @@ entryPoints:
     address: ":8080"
 
 certificatesResolvers:
-  # CA ACME privé — Step-CA (réseau Docker interne traefik-net)
-  # Émet des certs pour tous les sous-domaines .tech et .lan
   stepca:
     acme:
       email: "{{ certbot_email }}"
@@ -35,7 +36,6 @@ providers:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
 
-# insecureSkipVerify pour les backends HTTPS avec certs auto-signés (FreeIPA, pfSense)
 serversTransport:
   insecureSkipVerify: true
 

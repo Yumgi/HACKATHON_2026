@@ -11,6 +11,8 @@ services:
       - DOCKER_STEPCA_INIT_PROVISIONER_NAME=acme
       - DOCKER_STEPCA_INIT_ACME=true
       - DOCKER_STEPCA_INIT_PASSWORD={{ vault_traefik_dashboard_password }}
+    ports:
+      - "9000:9000"
     restart: unless-stopped
     networks:
       - traefik-net
@@ -31,11 +33,9 @@ services:
       - /opt/traefik/config:/config:ro
       - /opt/traefik/certs:/certs
       - /opt/traefik/logs:/logs
-      # Root CA de Step-CA monté pour que Traefik lui fasse confiance
       - /opt/traefik/step-ca/certs/root_ca.crt:/usr/local/share/ca-certificates/step-ca.crt:ro
     environment:
       - TZ=Europe/Paris
-      # LEGO (lib ACME de Traefik) utilise ce fichier pour valider le CA privé
       - LEGO_CA_CERTIFICATES=/usr/local/share/ca-certificates/step-ca.crt
     networks:
       - traefik-net
