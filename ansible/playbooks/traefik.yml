@@ -6,12 +6,3 @@
   roles:
     - role: traefik
       tags: [traefik, proxy]
-
-  post_tasks:
-    - name: Vérifier Traefik API
-      uri:
-        url: "http://{{ traefik_ip }}:8080/api/version"
-        status_code: 200
-      retries: 6
-      delay: 5
-      tags: verify
