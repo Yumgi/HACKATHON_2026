@@ -1,45 +1,42 @@
 ---
-# Utilisateurs de démonstration ACME Corp
+# freeipa.ansible_freeipa.ipauser — collection officielle Red Hat
 
 - name: Créer l'utilisateur alice (admin)
-  community.general.ipa_user:
+  freeipa.ansible_freeipa.ipauser:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
     name: alice
-    givenname: Alice
-    sn: Admin
-    mail: alice@acme.local
+    first: Alice
+    last: Admin
+    mail: alice@{{ freeipa_domain }}
     password: "Admin1234!"
+    update_password: on_create
     groups:
       - acme-admins
       - acme-users
     state: present
-    ipa_host: "ipa.{{ domain }}"
-    ipa_user: admin
-    ipa_pass: "{{ freeipa_admin_password }}"
 
 - name: Créer l'utilisateur bob (utilisateur standard)
-  community.general.ipa_user:
+  freeipa.ansible_freeipa.ipauser:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
     name: bob
-    givenname: Bob
-    sn: User
-    mail: bob@acme.local
+    first: Bob
+    last: User
+    mail: bob@{{ freeipa_domain }}
     password: "User1234!"
+    update_password: on_create
     groups:
       - acme-users
     state: present
-    ipa_host: "ipa.{{ domain }}"
-    ipa_user: admin
-    ipa_pass: "{{ freeipa_admin_password }}"
 
 - name: Créer l'utilisateur carol (lecture seule)
-  community.general.ipa_user:
+  freeipa.ansible_freeipa.ipauser:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
     name: carol
-    givenname: Carol
-    sn: Readonly
-    mail: carol@acme.local
+    first: Carol
+    last: Readonly
+    mail: carol@{{ freeipa_domain }}
     password: "Read1234!"
+    update_password: on_create
     groups:
       - acme-readonly
     state: present
-    ipa_host: "ipa.{{ domain }}"
-    ipa_user: admin
-    ipa_pass: "{{ freeipa_admin_password }}"

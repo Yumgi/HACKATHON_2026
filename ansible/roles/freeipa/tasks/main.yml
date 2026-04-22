@@ -1,98 +1,155 @@
 ---
-# FreeIPA sur Rocky Linux 9 — utilise dnf, firewalld, systemd natifs
+# FreeIPA — Rocky Linux 9 VM sur Proxmox
 
-- name: Mettre à jour le système Rocky Linux
+# ── 1. Prérequis système ───────────────────────────────────────────────────────
+
+- name: Mettre à jour tous les paquets
   dnf:
     name: "*"
     state: latest
     update_cache: true
   tags: install
 
-- name: Installer les outils DNF de base et EPEL
+- name: Installer les dépendances de base
   dnf:
-    name: 
+    name:
       - dnf-plugins-core
-      - epel-release
+      - python3-libsemanage   # SELinux bindings Python
+      - python3-policycoreutils
+      - chrony
     state: present
   tags: install
 
-- name: Activer le dépôt CRB (CodeReady Builder)
+- name: Activer le dépôt CRB (requis pour certaines dépendances IPA)
   command: dnf config-manager --set-enabled crb
-  register: crb_status
-  changed_when: false # Évite qu'Ansible marque "changed" à chaque exécution
+  changed_when: false
   tags: install
 
 - name: Rafraîchir le cache DNF
   command: dnf makecache
-  args:
-    warn: false
   changed_when: false
   tags: install
-  
-- name: Installer FreeIPA server + DNS
+
+# ── 2. SELinux — permissive pour le hackathon ──────────────────────────────────
+# En production : configurer les booleans SELinux IPA plutôt que désactiver
+
+- name: Passer SELinux en mode permissive (runtime)
+  command: setenforce 0
+  changed_when: false
+  failed_when: false  # Ignore si déjà permissive ou disabled
+  tags: configure
+
+- name: Passer SELinux en mode permissive (persistant)
+  selinux:
+    policy: targeted
+    state: permissive
+  tags: configure
+
+# ── 3. NetworkManager — ne pas écraser /etc/resolv.conf après install IPA ──────
+
+- name: Configurer NetworkManager pour ne pas gérer le DNS
+  copy:
+    dest: /etc/NetworkManager/conf.d/90-ipa-dns.conf
+    content: |
+      [main]
+      dns=none
+    mode: "0644"
+  notify: restart networkmanager
+  tags: configure
+
+- name: S'assurer que chrony est démarré (Kerberos nécessite une horloge précise)
+  systemd:
+    name: chronyd
+    state: started
+    enabled: true
+  tags: configure
+
+# ── 4. Paquets FreeIPA ─────────────────────────────────────────────────────────
+
+- name: Installer FreeIPA server + DNS + Python bindings
   dnf:
     name:
       - ipa-server
       - ipa-server-dns
-      - python3-ipalib
-      - python3-ipaclient
       - bind
       - bind-dyndb-ldap
+      - python3-ipalib
+      - python3-ipaclient
     state: present
   tags: install
 
+# ── 5. Hostname et /etc/hosts ──────────────────────────────────────────────────
+
 - name: Configurer le hostname FQDN
   hostname:
-    name: "ipa.{{ domain }}"
+    name: "ipa.{{ freeipa_domain }}"
   tags: configure
 
-- name: Supprimer l'entrée 127.0.0.1 conflictuelle avec le FQDN
+- name: Supprimer les entrées 127.x.x.x avec le FQDN (conflictuelles avec IPA)
   lineinfile:
     path: /etc/hosts
-    regexp: "^127\\.0\\.0\\.1.*ipa\\.{{ domain }}"
+    regexp: "^127\\..*ipa\\.{{ freeipa_domain }}"
     state: absent
   tags: configure
 
-- name: Ajouter l'entrée /etc/hosts pour FreeIPA
+- name: Ajouter l'entrée /etc/hosts avec l'IP réelle
   lineinfile:
     path: /etc/hosts
-    line: "{{ freeipa_ip }} ipa.{{ domain }} ipa"
+    line: "{{ freeipa_ip }} ipa.{{ freeipa_domain }} ipa"
     state: present
   tags: configure
 
-- name: Vérifier si FreeIPA est déjà installé
+# ── 6. Installation FreeIPA (idempotente) ─────────────────────────────────────
+
+- name: Vérifier si FreeIPA est déjà configuré
   stat:
     path: /etc/ipa/default.conf
   register: ipa_installed
   tags: install
 
-- name: Installer FreeIPA server (idempotent via creates)
-  command: >
+- name: Lancer ipa-server-install
+  command: >-
     ipa-server-install
     --unattended
-    --hostname=ipa.{{ domain }}
+    --hostname=ipa.{{ freeipa_domain }}
     --realm={{ freeipa_realm }}
     --domain={{ freeipa_domain }}
     --ds-password={{ freeipa_ds_password }}
     --admin-password={{ freeipa_admin_password }}
     --setup-dns
     --auto-reverse
-    --forwarder=1.1.1.1
+    {% for fw in freeipa_dns_forwarders %}--forwarder={{ fw }} {% endfor %}
     --no-ntp
     --mkhomedir
   when: not ipa_installed.stat.exists
   register: ipa_install_result
   changed_when: ipa_install_result.rc == 0
+  no_log: true  # Masquer les mots de passe dans les logs
   tags: install
 
-- name: Activer et démarrer le service ipa
+# ── 7. Service IPA ─────────────────────────────────────────────────────────────
+
+- name: Démarrer et activer le service IPA
   systemd:
     name: ipa
     state: started
     enabled: true
   tags: configure
 
-- name: Ouvrir les services FreeIPA dans firewalld
+- name: Attendre que l'API IPA réponde (max 120s)
+  uri:
+    url: "https://ipa.{{ freeipa_domain }}/ipa/ui/"
+    validate_certs: false
+    status_code: 200
+  retries: 12
+  delay: 10
+  register: ipa_api_check
+  until: ipa_api_check.status == 200
+  tags: configure
+
+# ── 8. Firewalld ───────────────────────────────────────────────────────────────
+
+- name: Activer les services FreeIPA dans firewalld
   firewalld:
     service: "{{ item }}"
     permanent: true
@@ -102,12 +159,12 @@
     - freeipa-ldap
     - freeipa-ldaps
     - dns
-    - ntp
     - http
     - https
+    - ntp
   tags: configure
 
-- name: Ouvrir les ports Kerberos (TCP + UDP)
+- name: Ouvrir les ports Kerberos
   firewalld:
     port: "{{ item }}"
     permanent: true
@@ -119,6 +176,8 @@
     - "464/tcp"
     - "464/udp"
   tags: configure
+
+# ── 9. Groupes, utilisateurs, politiques ──────────────────────────────────────
 
 - name: Créer les groupes ACME
   include_tasks: groups.yml

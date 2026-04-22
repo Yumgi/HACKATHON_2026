@@ -1,0 +1,13 @@
+---
+collections:
+  # Collection officielle FreeIPA — ipagroup, ipauser, ipadnsrecord, ipapwpolicy...
+  - name: freeipa.ansible_freeipa
+    version: ">=1.13.0"
+
+  # Modules généraux (htpasswd, ipa_* legacy si besoin, etc.)
+  - name: community.general
+    version: ">=9.0.0"
+
+  # Docker Compose v2 pour Traefik/Step-CA
+  - name: community.docker
+    version: ">=3.0.0"

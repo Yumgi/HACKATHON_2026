@@ -1,12 +1,12 @@
 ---
-# Defaults FreeIPA — Rocky Linux 9
-freeipa_realm: "ACME.LOCAL"
-freeipa_domain: "acme.local"
-freeipa_ip: "10.10.0.10"
-freeipa_server_fqdn: "ipa.acme.local"
-freeipa_admin_user: admin
-
-# Utilisé par la task main.yml pour le check d'installation
-ipa_installed:
-  stat:
-    exists: false
+freeipa_realm:        "ACME.LOCAL"
+freeipa_domain:       "acme.local"
+freeipa_ip:           "10.20.0.10"
+freeipa_server_fqdn:  "ipa.acme.local"
+freeipa_admin_user:   "admin"
+freeipa_ntp_servers:
+  - "0.fr.pool.ntp.org"
+  - "1.fr.pool.ntp.org"
+freeipa_dns_forwarders:
+  - "1.1.1.1"
+  - "8.8.8.8"

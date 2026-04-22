@@ -1,54 +1,37 @@
 ---
-- name: Obtenir le ticket Kerberos admin
-  shell: echo "{{ freeipa_admin_password }}" | kinit admin
-  changed_when: false
-  no_log: true
+# freeipa.ansible_freeipa.ipagroup — collection officielle Red Hat
+# Les modules s'exécutent sur le serveur IPA lui-même via l'API locale
 
-- name: Créer le groupe dev_servers
-  community.general.ipa_group:
-    name: dev_servers
-    description: "Serveurs de développement ACME Corp"
+- name: Créer le groupe acme-admins
+  freeipa.ansible_freeipa.ipagroup:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    name: acme-admins
+    description: "Administrateurs ACME Corp"
     state: present
-    ipa_host: "ipa.{{ domain }}"
-    ipa_user: admin
-    ipa_pass: "{{ freeipa_admin_password }}"
 
-- name: Créer le groupe admins
-  community.general.ipa_group:
-    name: admins
+- name: Créer le groupe acme-users
+  freeipa.ansible_freeipa.ipagroup:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    name: acme-users
     description: "Utilisateurs standard ACME Corp"
     state: present
-    ipa_host: "ipa.{{ domain }}"
-    ipa_user: admin
-    ipa_pass: "{{ freeipa_admin_password }}"
 
-- name: Créer le groupe users
-  community.general.ipa_group:
-    name: users
-    description: "Accès lecture seule"
+- name: Créer le groupe acme-readonly
+  freeipa.ansible_freeipa.ipagroup:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    name: acme-readonly
+    description: "Accès lecture seule ACME Corp"
     state: present
-    ipa_host: "ipa.{{ domain }}"
-    ipa_user: admin
-    ipa_pass: "{{ freeipa_admin_password }}"
 
 - name: Appliquer les politiques de mot de passe par groupe
-  shell: |
-    echo "{{ ipa_admin_password }}" | kinit admin
-    ipa pwpolicy-show {{ item.group }} 2>/dev/null && \
-    ipa pwpolicy-mod {{ item.group }} \
-      --minlife={{ item.minlife }} \
-      --maxlife={{ item.maxlife }} \
-      --minlength={{ item.minlength }} \
-      --history={{ item.history }} \
-      --minclasses={{ item.minclasses }} \
-      --priority={{ item.priority }} || \
-    ipa pwpolicy-add {{ item.group }} \
-      --minlife={{ item.minlife }} \
-      --maxlife={{ item.maxlife }} \
-      --minlength={{ item.minlength }} \
-      --history={{ item.history }} \
-      --minclasses={{ item.minclasses }} \
-      --priority={{ item.priority }}
+  freeipa.ansible_freeipa.ipapwpolicy:
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    name: "{{ item.group }}"
+    minlife: "{{ item.minlife }}"
+    maxlife: "{{ item.maxlife }}"
+    minlength: "{{ item.minlength }}"
+    history: "{{ item.history }}"
+    minclasses: "{{ item.minclasses }}"
+    priority: "{{ item.priority }}"
+    state: present
   loop: "{{ ipa_password_policies }}"
-  changed_when: false
-
