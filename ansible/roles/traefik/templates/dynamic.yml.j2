@@ -1,26 +1,102 @@
 http:
   routers:
     grafana:
-      rule: "Host(`grafana.{{ domain }}`)"
+      rule: "Host(`grafana.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: grafana
       tls:
-        certResolver: letsencrypt
+        certResolver: stepca
+      middlewares: [secure-headers]
+
+    prometheus:
+      rule: "Host(`prometheus.{{ domain_ext }}`)"
+      entryPoints: [websecure]
+      service: prometheus
+      tls:
+        certResolver: stepca
+      middlewares: [basic-auth, secure-headers]
+
+    loki:
+      rule: "Host(`loki.{{ domain_ext }}`)"
+      entryPoints: [websecure]
+      service: loki
+      tls:
+        certResolver: stepca
+      middlewares: [basic-auth, secure-headers]
+
+    bareos:
+      rule: "Host(`bareos.{{ domain_ext }}`)"
+      entryPoints: [websecure]
+      service: bareos
+      tls:
+        certResolver: stepca
+      middlewares: [secure-headers]
+
+    freeipa:
+      rule: "Host(`ipa.{{ domain_ext }}`)"
+      entryPoints: [websecure]
+      service: freeipa
+      tls:
+        certResolver: stepca
+      middlewares: [secure-headers]
+
+    pfsense:
+      rule: "Host(`pfsense.{{ domain_ext }}`)"
+      entryPoints: [websecure]
+      service: pfsense
+      tls:
+        certResolver: stepca
       middlewares: [secure-headers]
 
     traefik-dashboard:
-      rule: "Host(`traefik.{{ domain }}`)"
+      rule: "Host(`traefik.{{ domain_ext }}`)"
       entryPoints: [websecure]
       service: api@internal
       tls:
-        certResolver: letsencrypt
+        certResolver: stepca
       middlewares: [basic-auth, secure-headers]
+
+    # Intranet — domaine .lan, même CA privé
+    intranet:
+      rule: "Host(`intranet.{{ domain_lan }}`)"
+      entryPoints: [websecure]
+      service: grafana
+      tls:
+        certResolver: stepca
+      middlewares: [secure-headers]
 
   services:
     grafana:
       loadBalancer:
         servers:
           - url: "http://{{ grafana_ip }}:3000"
+
+    prometheus:
+      loadBalancer:
+        servers:
+          - url: "http://{{ prometheus_ip }}:9090"
+
+    loki:
+      loadBalancer:
+        servers:
+          - url: "http://{{ loki_ip }}:3100"
+
+    bareos:
+      loadBalancer:
+        servers:
+          - url: "http://{{ bareos_ip }}:9100"
+
+    freeipa:
+      loadBalancer:
+        servers:
+          - url: "https://{{ freeipa_ip }}"
+        passHostHeader: false
+
+    pfsense:
+      loadBalancer:
+        servers:
+          - url: "https://10.10.0.1"
+        passHostHeader: false
 
   middlewares:
     basic-auth:
@@ -30,6 +106,7 @@ http:
     secure-headers:
       headers:
         stsSeconds: 31536000
+        stsIncludeSubdomains: true
         browserXssFilter: true
         contentTypeNosniff: true
         frameDeny: true
