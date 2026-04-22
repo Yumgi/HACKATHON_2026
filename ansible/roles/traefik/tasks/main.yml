@@ -27,7 +27,6 @@
     src: traefik.yml.j2
     dest: /opt/traefik/traefik.yml
     mode: "0644"
-  notify: restart traefik
   tags: configure
 
 - name: Déployer la config dynamique des routes
@@ -35,10 +34,9 @@
     src: dynamic.yml.j2
     dest: /opt/traefik/config/dynamic.yml
     mode: "0644"
-  notify: restart traefik
   tags: configure
 
-- name: Générer le fichier htpasswd via commande
+- name: Générer le fichier htpasswd
   command: >
     htpasswd -cbB /opt/traefik/config/.htpasswd
     {{ traefik_dashboard_user }}
@@ -47,20 +45,19 @@
   changed_when: true
   tags: configure
 
-- name: Déployer docker-compose
+- name: Déployer docker-compose.yml
   template:
     src: docker-compose.yml.j2
     dest: /opt/traefik/docker-compose.yml
     mode: "0644"
-  notify: restart traefik
   tags: configure
 
 # ── Step-CA ────────────────────────────────────────────────────────────────────
-- name: Démarrer Step-CA (initialise le CA au premier boot)
-  community.docker.docker_compose_v2:
-    project_src: /opt/traefik
-    services: [step-ca]
-    state: present
+- name: Démarrer Step-CA
+  command: docker compose -f /opt/traefik/docker-compose.yml up -d step-ca
+  args:
+    chdir: /opt/traefik
+  changed_when: true
   tags: [configure, stepca]
 
 - name: Attendre que Step-CA génère le root CA (max 90s)
@@ -90,7 +87,8 @@
 
 # ── Traefik ────────────────────────────────────────────────────────────────────
 - name: Démarrer la stack complète (Step-CA + Traefik)
-  community.docker.docker_compose_v2:
-    project_src: /opt/traefik
-    state: present
+  command: docker compose -f /opt/traefik/docker-compose.yml up -d
+  args:
+    chdir: /opt/traefik
+  changed_when: true
   tags: [configure, restart]
