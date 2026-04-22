@@ -66,6 +66,7 @@ loki_port: 3100
 
 # ── Bareos ────────────────────────────────────────────────────────────────────
 bareos_webui_password: "{{ vault_bareos_webui_password }}"
+bareos_db_password:    "{{ vault_bareos_db_password }}"
 
 # ── Traefik / TLS ─────────────────────────────────────────────────────────────
 certbot_email: "admin@grp1.hackathon-ESGI-2026.tech"

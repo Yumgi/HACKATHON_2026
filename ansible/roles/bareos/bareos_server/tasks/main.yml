@@ -80,6 +80,13 @@
   when: bareos_db_exists.stdout != "1"
   tags: configure
 
+- name: Définir le mot de passe PostgreSQL de l'utilisateur bareos
+  become_user: postgres
+  command: psql -c "ALTER USER bareos WITH PASSWORD '{{ bareos_db_password }}';"
+  no_log: true
+  changed_when: true
+  tags: configure
+
 # ── Config répertoires ────────────────────────────────────────────────────────
 
 - name: Créer les répertoires de config Bareos
@@ -90,6 +97,7 @@
     group: bareos
     mode: "0750"
   loop:
+    - "{{ bareos_dir_conf_path }}/catalog"
     - "{{ bareos_dir_conf_path }}/client"
     - "{{ bareos_dir_conf_path }}/fileset"
     - "{{ bareos_dir_conf_path }}/job"
@@ -123,6 +131,16 @@
   tags: configure
 
 # ── Director — ressources dynamiques ──────────────────────────────────────────
+
+- name: Déployer la configuration du catalogue PostgreSQL
+  template:
+    src: catalog.conf.j2
+    dest: "{{ bareos_dir_conf_path }}/catalog/MyCatalog.conf"
+    owner: root
+    group: bareos
+    mode: "0640"
+  notify: Restart bareos dir
+  tags: configure
 
 - name: Déployer les ressources Client
   template:
